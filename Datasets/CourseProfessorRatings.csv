@@ -1,0 +1,83 @@
+course_number,professors_by_score_json
+CSC104,"{""4.5"": [""Danny Heap""], ""3.5"": [""Gary Baumgartner""], ""3.7"": [""Jacqueline Smith""]}"
+CSC108,"{""4.4"": [""Francois Pitt"", ""Tom Fairgrieve""], ""4.3"": [""Jennifer Campbell"", ""Paul Gries""], ""3.6"": [""Steve Engels""], ""4.0"": [""Diane Horton"", ""Thomas Fairgrieve""], ""4.8"": [""Kuei Sun"", ""Marina Tawfik""], ""4.5"": [""Danny Heap"", ""Jonathan Calver"", ""Mario Badr""], ""3.5"": [""Gary Baumgartner"", ""Karen Reid""], ""3.0"": [""Michelle Craig""], ""4.7"": [""Daniel Zingaro""], ""4.9"": [""Sadia Sharmin""], ""3.7"": [""Jacqueline Smith""], ""3.4"": [""Amanjit Kainth""], ""4.1"": [""Sophia Huynh""], ""5.0"": [""Angela Bernuy"", ""Di Chen"", ""Joohno Kim""]}"
+CSC110,"{""4.4"": [""Tom Fairgrieve""], ""4.2"": [""David Liu""], ""4.5"": [""Mario Badr""], ""4.9"": [""Sadia Sharmin""]}"
+CSC111,"{""4.2"": [""David Liu""], ""4.5"": [""Mario Badr""], ""4.9"": [""Sadia Sharmin""]}"
+CSC120,"{""4.3"": [""Jennifer Campbell""]}"
+CSC148,"{""4.4"": [""Francois Pitt"", ""Sonya Allin"", ""Velian Pandeliev""], ""4.3"": [""Paul Gries""], ""3.6"": [""Steve Engels""], ""4.0"": [""Diane Horton""], ""4.5"": [""Bahar Aameri"", ""Danny Heap"", ""Jonathan Calver"", ""Mario Badr""], ""3.5"": [""Gary Baumgartner""], ""4.2"": [""David Liu""], ""3.0"": [""Michelle Craig""], ""4.7"": [""Arnamoy Bhattacharyya"", ""Daniel Zingaro""], ""3.7"": [""Jacqueline Smith""], ""3.8"": [""Bogdan Simion""], ""3.3"": [""Ilir Dema""], ""4.1"": [""Sophia Huynh""], ""5.0"": [""Bilal Syed""]}"
+CSC165,"{""4.4"": [""Francois Pitt"", ""Tom Fairgrieve""], ""4.0"": [""Diane Horton""], ""4.5"": [""Bahar Aameri"", ""Danny Heap"", ""Jonathan Calver""], ""3.5"": [""Gary Baumgartner""], ""4.2"": [""David Liu""], ""4.3"": [""Jennifer Campbell""], ""3.3"": [""Ilir Dema""]}"
+CSC196,"{""2.0"": [""Allan Borodin""]}"
+CSC197,"{""4.4"": [""Francois Pitt""]}"
+CSC199,{}
+CSC207,"{""4.4"": [""Francois Pitt"", ""Sonya Allin""], ""4.3"": [""Jennifer Campbell"", ""Paul Gries""], ""4.0"": [""Diane Horton""], ""3.5"": [""Karen Reid""], ""3.0"": [""Michelle Craig""], ""4.5"": [""Jonathan Calver""], ""4.6"": [""Marina Barsky""], ""3.3"": [""Ilir Dema""], ""3.7"": [""Yasaman Rohanifar""]}"
+CSC209,"{""4.8"": [""Kuei Sun""], ""4.2"": [""David Liu""], ""4.3"": [""Jennifer Campbell""], ""3.5"": [""Karen Reid""], ""3.0"": [""Michelle Craig""], ""4.7"": [""Daniel Zingaro""], ""2.6"": [""Alan Rosenthal""], ""4.6"": [""Marina Barsky""], ""1.0"": [""Demetres Kostas""]}"
+CSC236,"{""4.4"": [""Francois Pitt""], ""4.5"": [""Bahar Aameri"", ""Danny Heap""], ""3.5"": [""Gary Baumgartner""], ""4.2"": [""David Liu""], ""1.6"": [""Daniela Rosu""], ""3.2"": [""Azadeh Farzan""], ""4.0"": [""Vassos Hadzilacos""], ""4.7"": [""Daniel Zingaro""], ""3.7"": [""Jacqueline Smith""], ""2.3"": [""Gerald Penn""], ""3.3"": [""Ilir Dema""], ""5.0"": [""Amirreza Peimani""]}"
+CSC240,"{""3.9"": [""Faith Ellen""]}"
+CSC258,"{""3.6"": [""Steve Engels""], ""4.5"": [""Mario Badr""], ""4.2"": [""Eric C. R. Hehner""]}"
+CSC263,"{""4.4"": [""Francois Pitt""], ""4.5"": [""Danny Heap"", ""Sam Toueg"", ""Sean Ovens""], ""4.2"": [""David Liu""], ""3.0"": [""Fatemeh Nargesian"", ""Michelle Craig""], ""4.0"": [""Vassos Hadzilacos""], ""4.6"": [""Chandra Gummaluru""]}"
+CSC265,"{""3.9"": [""Faith Ellen""], ""4.8"": [""Aleksandar Nikolov""]}"
+CSC299,{}
+CSC300,{}
+CSC301,"{""3.6"": [""Steve Engels""]}"
+CSC302,{}
+CSC303,"{""2.0"": [""Allan Borodin""]}"
+CSC304,"{""4.4"": [""Nisarg Shah""]}"
+CSC309,"{""4.8"": [""Kuei Sun""], ""3.5"": [""Karen Reid"", ""Kianoosh Abbasi""], ""5.0"": [""Alec Jacobson""]}"
+CSC311,"{""1.9"": [""Roger Grosse""], ""3.4"": [""Amanjit Kainth""], ""4.7"": [""Alice Gao""], ""5.0"": [""Juhan Bae""]}"
+CSC317,{}
+CSC318,"{""3.4"": [""Ilona Posner""], ""4.4"": [""Velian Pandeliev""], ""3.2"": [""Fanny Chevalier""]}"
+CSC320,"{""3.8"": [""Kiriakos Kutulakos""]}"
+CSC324,"{""4.0"": [""Diane Horton""], ""3.5"": [""Gary Baumgartner""], ""4.2"": [""David Liu""], ""2.3"": [""Gerald Penn""], ""3.3"": [""Ilir Dema""]}"
+CSC336,"{""4.4"": [""Tom Fairgrieve""], ""4.5"": [""Jonathan Calver""], ""2.9"": [""Christina Christara""]}"
+CSC343,"{""4.0"": [""Diane Horton""], ""3.0"": [""Fatemeh Nargesian"", ""Michelle Craig""], ""1.6"": [""Daniela Rosu""], ""3.7"": [""Jacqueline Smith""], ""4.6"": [""Marina Barsky""], ""4.8"": [""Marina Tawfik""]}"
+CSC367,"{""3.8"": [""Bogdan Simion""], ""1.7"": [""Maryam Dehnavi""]}"
+CSC369,"{""4.8"": [""Kuei Sun""], ""3.5"": [""Karen Reid""], ""4.5"": [""Mario Badr""], ""3.8"": [""Bogdan Simion""], ""4.2"": [""Angela Demke-Brown""]}"
+CSC373,"{""4.4"": [""Francois Pitt"", ""Nisarg Shah""], ""4.5"": [""Sam Toueg""], ""4.7"": [""Daniel Zingaro""], ""2.0"": [""Allan Borodin""], ""4.2"": [""Nathan Wiebe""], ""4.8"": [""Aleksandar Nikolov""]}"
+CSC384,"{""3.6"": [""Steve Engels""], ""4.5"": [""Bahar Aameri""], ""4.6"": [""Chandra Gummaluru""], ""4.7"": [""Alice Gao""], ""4.4"": [""Sonya Allin""]}"
+CSC385,{}
+CSC396,"{""3.4"": [""Ilona Posner""]}"
+CSC398,{}
+CSC399,{}
+CSC401,"{""2.3"": [""Gerald Penn""], ""2.9"": [""Frank Rudzicz""]}"
+CSC404,"{""3.6"": [""Steve Engels""], ""2.3"": [""Elias Adum""]}"
+CSC410,"{""3.2"": [""Azadeh Farzan""], ""2.3"": [""Lev Naiman""]}"
+CSC412,{}
+CSC413,{}
+CSC417,{}
+CSC419,{}
+CSC420,"{""3.6"": [""Babak Taati""], ""3.7"": [""Morteza Rezanejad""]}"
+CSC428,{}
+CSC436,"{""4.4"": [""Tom Fairgrieve""]}"
+CSC438,{}
+CSC443,"{""4.6"": [""Marina Barsky""]}"
+CSC446,{}
+CSC448,"{""3.9"": [""Faith Ellen""]}"
+CSC454,"{""4.7"": [""Helen Kontozopoulos""]}"
+CSC456,"{""2.9"": [""Christina Christara""]}"
+CSC457,"{""2.6"": [""Peter Marbach""]}"
+CSC458,"{""2.6"": [""Peter Marbach""], ""5.0"": [""Yashar Ganjali""]}"
+CSC463,{}
+CSC465,"{""4.2"": [""Eric C. R. Hehner""]}"
+CSC466,{}
+CSC469,"{""3.8"": [""Bogdan Simion""], ""4.2"": [""Angela Demke-Brown""]}"
+CSC473,"{""4.8"": [""Aleksandar Nikolov""]}"
+CSC485,"{""2.3"": [""Gerald Penn""]}"
+CSC486,{}
+CSC488,"{""3.5"": [""Gary Baumgartner""]}"
+CSC490,{}
+CSC491,"{""4.7"": [""Helen Kontozopoulos""]}"
+CSC494,"{""4.8"": [""Kuei Sun""], ""4.5"": [""Danny Heap""], ""3.5"": [""Gary Baumgartner""], ""1.6"": [""Daniela Rosu""]}"
+CSC495,{}
+MAT135,{}
+MAT136,"{""3.3"": [""Ilir Dema""]}"
+MAT137,"{""3.5"": [""Gary Baumgartner""]}"
+MAT157,{}
+MAT221,{}
+MAT223,{}
+MAT235,{}
+MAT237,{}
+MAT240,"{""3.5"": [""Gary Baumgartner""]}"
+MAT257,{}
+STA237,{}
+STA247,{}
+STA257,{}

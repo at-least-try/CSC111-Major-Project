@@ -1,0 +1,13 @@
+# CSC111 Project dependencies
+
+# Testing and code checking
+hypothesis
+pytest
+python-ta
+
+# Graph and visualization
+networkx
+plotly
+
+# Web app
+flask

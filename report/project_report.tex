@@ -1,0 +1,114 @@
+\documentclass[12pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\title{Project Title Here}
+\author{Group Member 1 \and Group Member 2 \and Group Member 3}
+\date{\today}
+
+\begin{document}
+\maketitle
+\onehalfspacing
+
+\section{Introduction}
+\textbf{Project Question/Goal:} TODO.
+
+TODO: Describe the problem domain, motivation, and required background context.
+Update your Phase 1 proposal content based on TA feedback and any direction changes.
+Add inline citations for facts, datasets, and prior work.
+
+\section{Datasets}
+\textit{If your project does not use datasets, state that clearly and explain your data source/generation approach.}
+
+\subsection{Dataset 1}
+\begin{itemize}[leftmargin=*]
+    \item Name: TODO
+    \item Source: TODO (include URL and access date)
+    \item Format: TODO (e.g., CSV/JSON)
+    \item Fields used by program: TODO
+    \item Notes on preprocessing/subsetting: TODO
+\end{itemize}
+
+\subsection{Dataset 2}
+\begin{itemize}[leftmargin=*]
+    \item Name: TODO
+    \item Source: TODO
+    \item Format: TODO
+    \item Fields used by program: TODO
+    \item Notes on preprocessing/subsetting: TODO
+\end{itemize}
+
+\section{Computational Overview}
+TODO: Describe the actual program implementation at a high level.
+
+\subsection{Data Representation (Trees/Graphs)}
+TODO: Explain how your data structures model the domain and where trees/graphs are central.
+
+\subsection{Major Computations and Algorithms}
+TODO: Summarize key computations (loading/building structures, filtering/aggregation, algorithms/models).
+Reference concrete files, classes, and core functions.
+
+\subsection{Output, Visualization, and Interactivity}
+TODO: Explain what output users see and how they interact with it (if applicable).
+
+\subsection{External Python Libraries}
+TODO: List new libraries and explain the relevant functions/data types used.
+
+\section{Instructions: Dataset Access and Running the Program}
+\subsection{Python and Library Setup}
+\begin{enumerate}[leftmargin=*]
+    \item Install Python 3.13.5.
+    \item Install dependencies from \texttt{requirements.txt}.
+    \item TODO: Add any extra installation notes if needed.
+\end{enumerate}
+
+\subsection{Dataset Download Instructions}
+Choose one method and provide exact steps:
+\begin{itemize}[leftmargin=*]
+    \item MarkUs upload (zip under 10 MB), or
+    \item \url{https://send.utoronto.ca} shared with \texttt{csc111-2026-01@cs.toronto.edu}, or
+    \item U of T OneDrive public/UTORid-accessible link.
+\end{itemize}
+TODO: Add exact link/location and extraction instructions.
+
+\subsection{How to Run}
+\begin{enumerate}[leftmargin=*]
+    \item Place all Python files in one folder (no subfolders for modules).
+    \item Ensure datasets are extracted to: TODO path.
+    \item Run \texttt{main.py}.
+\end{enumerate}
+
+Expected output:
+\begin{itemize}[leftmargin=*]
+    \item TODO: Describe what appears when \texttt{main.py} runs.
+    \item TODO: Describe interaction steps and what the TA should try.
+    \item TODO: Add screenshots with \texttt{\textbackslash includegraphics} if helpful.
+\end{itemize}
+
+\section{Changes from Proposal to Final Submission}
+TODO: Explain key scope/direction/design changes and why they were made.
+Mention TA/instructor feedback and any technical constraints that influenced decisions.
+
+\section{Discussion}
+TODO: Analyze whether results answer your question/goal.
+Discuss limitations (data quality, algorithms, tools, runtime, assumptions) and next steps.
+Target approximately 500--800 words.
+
+\section{References}
+% You can replace this with a BibTeX workflow if preferred.
+\begin{thebibliography}{9}
+\bibitem{ref1}
+TODO: Topic research source.
+
+\bibitem{ref2}
+TODO: Dataset source.
+
+\bibitem{ref3}
+TODO: Library documentation/tutorial source.
+\end{thebibliography}
+
+\end{document}
