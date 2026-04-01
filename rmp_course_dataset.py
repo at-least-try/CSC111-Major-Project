@@ -16,7 +16,8 @@ from Datasets.ratemyprof_scraper import (
     collect_professor_profiles_for_school_department,
 )
 
-DEFAULT_RMP_CSV_PATH = Path("Datasets/CourseProfessorRatings.csv")
+PROJECT_ROOT = Path(__file__).resolve().parent
+DEFAULT_RMP_CSV_PATH = PROJECT_ROOT / "Datasets" / "CourseProfessorRatings.csv"
 
 
 def initialize_empty_rating_index(course_numbers: set[str]) -> dict[str, CourseProfessorRatings]:

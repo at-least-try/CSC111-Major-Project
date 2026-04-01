@@ -8,15 +8,65 @@ from pathlib import Path
 from models import Course, normalize_course_number
 
 CSV_SPLIT_CHAR = "|"
-LIST_SPLIT_CHAR = ","
-DEFAULT_COURSE_DATA_PATH = Path("Datasets/CourseData.csv")
+OPTION_SPLIT_CHAR = "/"
+GROUP_SPLIT_CHAR = ";"
+AND_SPLIT_CHAR = "&"
+PROJECT_ROOT = Path(__file__).resolve().parent
+DEFAULT_COURSE_DATA_PATH = PROJECT_ROOT / "Datasets" / "CourseData.csv"
 
 
-def _split_optional_list(raw: str) -> list[str]:
-    """Return comma-separated values with empty entries removed."""
+def _split_course_list(raw: str) -> list[str]:
+    """Split a flat course list using ``/`` (and legacy `,`) separators."""
     if not raw:
         return []
-    return [item.strip() for item in raw.split(LIST_SPLIT_CHAR) if item.strip()]
+    normalized = raw.replace(",", OPTION_SPLIT_CHAR)
+    result = []
+    for token in normalized.split(OPTION_SPLIT_CHAR):
+        cleaned = token.strip()
+        if cleaned:
+            result.append(normalize_course_number(cleaned))
+    return result
+
+
+def _parse_prerequisite_groups(raw: str) -> list[list[set[str]]]:
+    """Parse prerequisite text into groups of options.
+
+    Format supported:
+    - groups separated by ``;`` (`,` also treated as group separator)
+    - options in each group separated by ``/``
+    - courses joined by ``&`` must all be completed for that option
+
+    Example:
+    ``CSC236/CSC240; MAT135&MAT136/MAT137`` becomes:
+    ``[[{'CSC236'}, {'CSC240'}], [{'MAT135', 'MAT136'}, {'MAT137'}]]``
+    """
+    if not raw:
+        return []
+
+    text = raw.replace(",", GROUP_SPLIT_CHAR)
+    groups = []
+    for group_text in text.split(GROUP_SPLIT_CHAR):
+        group_text = group_text.strip()
+        if not group_text:
+            continue
+
+        options = []
+        for option_text in group_text.split(OPTION_SPLIT_CHAR):
+            option_text = option_text.strip()
+            if not option_text:
+                continue
+
+            required_courses = set()
+            for part in option_text.split(AND_SPLIT_CHAR):
+                part = part.strip()
+                if part:
+                    required_courses.add(normalize_course_number(part))
+            if required_courses and required_courses not in options:
+                options.append(required_courses)
+
+        if options:
+            groups.append(options)
+    return groups
 
 
 def load_course_catalog(csv_path: Path = DEFAULT_COURSE_DATA_PATH) -> dict[str, Course]:
@@ -32,10 +82,12 @@ def load_course_catalog(csv_path: Path = DEFAULT_COURSE_DATA_PATH) -> dict[str, 
                 course_code=row["Course Code"].strip(),
                 course_title=row["Course Title"].strip(),
                 course_description=row["Course Description"].strip(),
-                prerequisites=_split_optional_list(row["Prerequisites"].strip()),
-                recommended=_split_optional_list(row["Recommended"].strip()),
-                corequisite=_split_optional_list(row["Corequisite"].strip()),
-                exclusion=_split_optional_list(row["Exclusion"].strip()),
+                prerequisite_groups=_parse_prerequisite_groups(
+                    row["Prerequisites"].strip()
+                ),
+                recommended=_split_course_list(row["Recommended"].strip()),
+                corequisite=_split_course_list(row["Corequisite"].strip()),
+                exclusion=_split_course_list(row["Exclusion"].strip()),
                 breadth_requirement=int(row["Breadth Requirement"].strip() or "0"),
             )
             courses[course.course_code] = course

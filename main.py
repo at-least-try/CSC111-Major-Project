@@ -7,6 +7,8 @@ Current milestone:
 
 from __future__ import annotations
 
+import os
+
 from course_dataset import build_course_number_index, load_course_catalog
 from rmp_course_dataset import (
     build_and_save_course_professor_ratings_dataset,
@@ -50,17 +52,10 @@ def run_load_rmp_dataset_summary() -> None:
 def run_web_app() -> None:
     """Run the website locally."""
     app = create_app()
-    app.run(debug=True)
+    port = int(os.environ.get("CSC111_WEB_PORT", "5055"))
+    print(f"Starting web app at http://127.0.0.1:{port}")
+    app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
 
 
 if __name__ == "__main__":
-    run_local_dataset_summary()
-
-    # Uncomment to build the ratings dataset from live scraping:
-    # run_build_rmp_dataset()
-
-    # Uncomment to load/inspect an already-built ratings dataset:
-    # run_load_rmp_dataset_summary()
-
-    # Uncomment to run the web app:
-    # run_web_app()
+    run_web_app()

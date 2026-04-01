@@ -1,9 +1,7 @@
 course_number,professors_by_score_json
-CSC104,"{""4.5"": [""Danny Heap""], ""3.5"": [""Gary Baumgartner""], ""3.7"": [""Jacqueline Smith""]}"
 CSC108,"{""4.4"": [""Francois Pitt"", ""Tom Fairgrieve""], ""4.3"": [""Jennifer Campbell"", ""Paul Gries""], ""3.6"": [""Steve Engels""], ""4.0"": [""Diane Horton"", ""Thomas Fairgrieve""], ""4.8"": [""Kuei Sun"", ""Marina Tawfik""], ""4.5"": [""Danny Heap"", ""Jonathan Calver"", ""Mario Badr""], ""3.5"": [""Gary Baumgartner"", ""Karen Reid""], ""3.0"": [""Michelle Craig""], ""4.7"": [""Daniel Zingaro""], ""4.9"": [""Sadia Sharmin""], ""3.7"": [""Jacqueline Smith""], ""3.4"": [""Amanjit Kainth""], ""4.1"": [""Sophia Huynh""], ""5.0"": [""Angela Bernuy"", ""Di Chen"", ""Joohno Kim""]}"
 CSC110,"{""4.4"": [""Tom Fairgrieve""], ""4.2"": [""David Liu""], ""4.5"": [""Mario Badr""], ""4.9"": [""Sadia Sharmin""]}"
 CSC111,"{""4.2"": [""David Liu""], ""4.5"": [""Mario Badr""], ""4.9"": [""Sadia Sharmin""]}"
-CSC120,"{""4.3"": [""Jennifer Campbell""]}"
 CSC148,"{""4.4"": [""Francois Pitt"", ""Sonya Allin"", ""Velian Pandeliev""], ""4.3"": [""Paul Gries""], ""3.6"": [""Steve Engels""], ""4.0"": [""Diane Horton""], ""4.5"": [""Bahar Aameri"", ""Danny Heap"", ""Jonathan Calver"", ""Mario Badr""], ""3.5"": [""Gary Baumgartner""], ""4.2"": [""David Liu""], ""3.0"": [""Michelle Craig""], ""4.7"": [""Arnamoy Bhattacharyya"", ""Daniel Zingaro""], ""3.7"": [""Jacqueline Smith""], ""3.8"": [""Bogdan Simion""], ""3.3"": [""Ilir Dema""], ""4.1"": [""Sophia Huynh""], ""5.0"": [""Bilal Syed""]}"
 CSC165,"{""4.4"": [""Francois Pitt"", ""Tom Fairgrieve""], ""4.0"": [""Diane Horton""], ""4.5"": [""Bahar Aameri"", ""Danny Heap"", ""Jonathan Calver""], ""3.5"": [""Gary Baumgartner""], ""4.2"": [""David Liu""], ""4.3"": [""Jennifer Campbell""], ""3.3"": [""Ilir Dema""]}"
 CSC196,"{""2.0"": [""Allan Borodin""]}"

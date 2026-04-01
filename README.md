@@ -37,10 +37,20 @@ This writes `Datasets/CourseProfessorRatings.csv`.
 ### 2. Launch the website
 
 ```bash
-python3 -c "from main import run_web_app; run_web_app()"
+python3 main.py
 ```
 
-Open `http://127.0.0.1:5000`.
+Open `http://127.0.0.1:5055`.
+
+If you want a different port:
+
+```bash
+CSC111_WEB_PORT=5060 python3 main.py
+```
+
+Then open `http://127.0.0.1:5060`.
+
+Note: if you open `http://127.0.0.1:5000` and see HTTP 403, that is a different local service already using port 5000.
 
 Use:
 - `completed`: comma-separated courses, e.g. `CSC108, CSC148, CSC165`
@@ -59,4 +69,3 @@ python3 -c "from main import run_local_dataset_summary; run_local_dataset_summar
 ```bash
 python3 -c "from main import run_load_rmp_dataset_summary; run_load_rmp_dataset_summary()"
 ```
-
