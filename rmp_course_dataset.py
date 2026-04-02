@@ -1,6 +1,6 @@
-"""CSC111 Project: course-to-professor ratings dataset pipeline.
+"""CSC111 Project: course-to-professor ratings dataset helpers.
 
-This module builds and loads a CSV dataset with the structure:
+This module loads and writes a CSV dataset with the structure:
 - one row per course number (e.g. CSC148)
 - a JSON dictionary mapping rating score -> list of professor names
 """
@@ -10,24 +10,11 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
-from typing import NamedTuple
 
 from models import CourseProfessorRatings
-from Datasets.ratemyprof_scraper import (
-    collect_dept_profiles,
-)
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_RMP_CSV_PATH = PROJECT_ROOT / "Datasets" / "CourseProfessorRatings.csv"
-
-
-class ScrapeOptions(NamedTuple):
-    """Configuration for department scraping."""
-
-    department_substring: str = "computer science"
-    page_size: int = 50
-    max_pages: int | None = 40
-    sleep_seconds: float = 0.2
 
 
 def initialize_empty_rating_index(
@@ -45,34 +32,23 @@ def initialize_empty_rating_index(
 
 def build_ratings_from_scrape(
     course_numbers: set[str],
-    department_substring: str = "computer science",
-    page_size: int = 50,
-    max_pages: int | None = 40,
-    sleep_seconds: float = 0.2,
 ) -> tuple[dict[str, CourseProfessorRatings], int]:
-    """Scrape RateMyProf and build course -> {score: [professors]} index.
+    """Build a ratings index from existing CSV data.
 
     Returns:
-    - populated course ratings index
-    - number of professor profiles successfully scraped
+    - populated course ratings index containing all requested courses
+    - profile count (always 0, since scraping is disabled)
     """
-    profiles = collect_dept_profiles(
-        department_substring=department_substring,
-        page_size=page_size,
-        max_pages=max_pages,
-        sleep_seconds=sleep_seconds,
-    )
-
     rating_index = initialize_empty_rating_index(course_numbers)
-    for profile in profiles:
-        for course_number in profile.course_numbers:
-            if course_number in rating_index:
-                rating_index[course_number].add_professor(
-                    professor_name=profile.full_name,
-                    score=profile.average_rating,
-                )
+    existing_index = {}
+    if DEFAULT_RMP_CSV_PATH.exists():
+        existing_index = load_ratings_csv(DEFAULT_RMP_CSV_PATH)
 
-    return rating_index, len(profiles)
+    for course_number in rating_index:
+        if course_number in existing_index:
+            rating_index[course_number] = existing_index[course_number]
+
+    return rating_index, 0
 
 
 def write_ratings_csv(
@@ -126,17 +102,35 @@ def load_ratings_csv(
 def build_and_save_ratings_dataset(
     course_numbers: set[str],
     output_path: Path = DEFAULT_RMP_CSV_PATH,
-    scrape_options: ScrapeOptions | None = None,
 ) -> tuple[dict[str, CourseProfessorRatings], int]:
-    """Run full scrape -> map -> save pipeline in one call."""
-    options = scrape_options if scrape_options is not None else ScrapeOptions()
-
+    """Build ratings dataset from existing CSV and save normalized output.
+    """
     rating_index, profile_count = build_ratings_from_scrape(
         course_numbers=course_numbers,
-        department_substring=options.department_substring,
-        page_size=options.page_size,
-        max_pages=options.max_pages,
-        sleep_seconds=options.sleep_seconds,
     )
     write_ratings_csv(rating_index=rating_index, output_path=output_path)
     return rating_index, profile_count
+
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
+
+    import python_ta
+    python_ta.check_all(config={
+        'max-line-length': 120,
+        'extra-imports': [
+            'dataclasses', 'itertools', 'csv', 'json', 'pathlib', 'base64',
+            'string', 'ssl', 'time', 'urllib.error', 'urllib.parse', 'urllib.request', 'os',
+            'networkx', 'flask', 'plotly.graph_objects',
+            'models', 'course_dataset', 'prerequisite_graph',
+            'rmp_course_dataset', 'ratemyprof_scraper', 'web_app'
+        ],
+        'allowed-io': [
+            'load_course_catalog',
+            'write_course_professor_ratings_csv',
+            'load_course_professor_ratings_csv',
+            '_fetch_html',
+            '_post_graphql'
+        ]
+    })

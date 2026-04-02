@@ -556,125 +556,165 @@ def create_app() -> Flask:
       const statusMessage = document.getElementById("status-message");
       let selectedNode = localStorage.getItem(selectedNodeStorageKey);
       let suppressNextDocumentClear = false;
-      if (!graphDiv || !form || !completedInput || !connectedOnlyCheckbox || !connectedOnlyInput || !graphDiv.on) {
+      if (!graphDiv || !form || !completedInput || !connectedOnlyCheckbox || !connectedOnlyInput) {
         return;
       }
-      const defaultStatusText = "Click a node once to show links (red = prerequisites, green = unlocks). 
-      Click the same node again to toggle completion.";
-      const incomingTraceIndex = 0;
-      const outgoingTraceIndex = 1;
-      const nodeTraceIndex = 2;
-      const nodeTrace = graphDiv.data[nodeTraceIndex];
-      const nodeCodes = Array.isArray(nodeTrace.customdata) ? nodeTrace.customdata : [];
-      const nodeIndexByCode = new Map();
-      nodeCodes.forEach(function (code, idx) { nodeIndexByCode.set(code, idx); });
-      const baseNodeColors = (
-        nodeTrace.marker &&
-        Array.isArray(nodeTrace.marker.color)
-      ) ? [...nodeTrace.marker.color] : [];
-      const baseNodeSizes = baseNodeColors.map(() => 16);
-      const baseNodeOpacity = baseNodeColors.map(() => 1.0);
-      const baseBorderWidths = baseNodeColors.map(() => 1.0);
-      const baseBorderColors = baseNodeColors.map(() => "#2f2f2f");
-      const baseNodeTexts = Array.isArray(nodeTrace.text) ? [...nodeTrace.text] : [];
-      const baseTextColors = baseNodeColors.map(() => "#202124");
-      const fadedNodeColor = "#d7dbe1";
-      const fadedTextColor = "#b0b7c3";
-      if (selectedNode && !nodeIndexByCode.has(selectedNode)) {
-        selectedNode = null;
-        localStorage.removeItem(selectedNodeStorageKey);
+      function isGraphReady() {
+        return (
+          window.Plotly &&
+          typeof graphDiv.on === "function" &&
+          Array.isArray(graphDiv.data) &&
+          graphDiv.data.length > 2
+        );
       }
 
-      function setStatus(text, color) {
-        if (!statusMessage) {
+      function waitForGraphReady(attempt) {
+        if (isGraphReady()) {
+          enableInteractions();
           return;
         }
-        statusMessage.textContent = text;
-        statusMessage.style.color = color;
-      }
-
-      function parseCompleted(text) {
-        const parts = text.split(",").map(x => x.trim()).filter(x => x.length > 0);
-        return new Set(parts);
-      }
-
-      function serializeCompleted(setValue) {
-        return Array.from(setValue).sort().join(",");
-      }
-
-      function segmentsToXY(segments) {
-        const x = [];
-        const y = [];
-        for (const segment of segments) {
-          x.push(segment[0], segment[2], null);
-          y.push(segment[1], segment[3], null);
+        if (attempt < 120) {
+          window.setTimeout(function () {
+            waitForGraphReady(attempt + 1);
+          }, 50);
         }
-        return {x, y};
       }
 
-      function setConnectionVisibility(activeNode) {
-        if (!window.Plotly || !graphDiv.data || graphDiv.data.length <= 1) {
-          return;
+      function enableInteractions() {
+        const defaultStatusText =
+          "Click a node once to show links (red = prerequisites, green = unlocks). " +
+          "Click the same node again to toggle completion.";
+        const incomingTraceIndex = 0;
+        const outgoingTraceIndex = 1;
+        const nodeTraceIndex = 2;
+        const nodeTrace = graphDiv.data[nodeTraceIndex];
+        const nodeCodes = Array.isArray(nodeTrace.customdata) ? nodeTrace.customdata : [];
+        const nodeIndexByCode = new Map();
+        nodeCodes.forEach(function (code, idx) {
+          nodeIndexByCode.set(code, idx);
+        });
+
+        const baseNodeColors = (
+          nodeTrace.marker &&
+          Array.isArray(nodeTrace.marker.color)
+        ) ? [...nodeTrace.marker.color] : [];
+        const baseNodeSizes = baseNodeColors.map(() => 16);
+        const baseNodeOpacity = baseNodeColors.map(() => 1.0);
+        const baseBorderWidths = baseNodeColors.map(() => 1.0);
+        const baseBorderColors = baseNodeColors.map(() => "#2f2f2f");
+        const baseNodeTexts = Array.isArray(nodeTrace.text) ? [...nodeTrace.text] : [];
+        const baseTextColors = baseNodeColors.map(() => "#202124");
+        const fadedNodeColor = "#d7dbe1";
+        const fadedTextColor = "#b0b7c3";
+
+        if (selectedNode && !nodeIndexByCode.has(selectedNode)) {
+          selectedNode = null;
+          localStorage.removeItem(selectedNodeStorageKey);
         }
-        const incomingSegments = activeNode === null ? [] : (incomingSegmentsByNode[activeNode] || []);
-        const outgoingSegments = activeNode === null ? [] : (outgoingSegmentsByNode[activeNode] || []);
-        const incomingXY = segmentsToXY(incomingSegments);
-        const outgoingXY = segmentsToXY(outgoingSegments);
 
-        window.Plotly.restyle(
-          graphDiv,
-          {"x": [incomingXY.x], "y": [incomingXY.y], "visible": [incomingXY.x.length > 0]},
-          [incomingTraceIndex]
-        );
-        window.Plotly.restyle(
-          graphDiv,
-          {"x": [outgoingXY.x], "y": [outgoingXY.y], "visible": [outgoingXY.x.length > 0]},
-          [outgoingTraceIndex]
-        );
-
-        const connectedNodes = new Set();
-        if (activeNode !== null) {
-          for (const source of (incomingNodesByNode[activeNode] || [])) {
-            connectedNodes.add(source);
+        function setStatus(text, color) {
+          if (!statusMessage) {
+            return;
           }
-          for (const target of (outgoingNodesByNode[activeNode] || [])) {
-            connectedNodes.add(target);
-          }
+          statusMessage.textContent = text;
+          statusMessage.style.color = color;
         }
 
-        const nodeColors = [...baseNodeColors];
-        const nodeSizes = [...baseNodeSizes];
-        const nodeOpacity = [...baseNodeOpacity];
-        const nodeBorderWidths = [...baseBorderWidths];
-        const nodeBorderColors = [...baseBorderColors];
-        const nodeTexts = [...baseNodeTexts];
-        const textColors = [...baseTextColors];
-        if (activeNode !== null) {
-          const focusNodes = new Set(connectedNodes);
-          focusNodes.add(activeNode);
-          for (let i = 0; i < nodeOpacity.length; i++) {
-            const code = nodeCodes[i];
-            if (!focusNodes.has(code)) {
-              nodeColors[i] = fadedNodeColor;
-              textColors[i] = fadedTextColor;
-              nodeOpacity[i] = 0.28;
-            } else {
-              nodeColors[i] = baseNodeColors[i];
-              textColors[i] = baseTextColors[i];
-              nodeOpacity[i] = 1.0;
+        function parseCompleted(text) {
+          const parts = text.split(",").map(x => x.trim()).filter(x => x.length > 0);
+          return new Set(parts);
+        }
+
+        function serializeCompleted(setValue) {
+          return Array.from(setValue).sort().join(",");
+        }
+
+        function extractClickedCourse(point) {
+          if (!point) {
+            return "";
+          }
+          if (typeof point.customdata === "string" && point.customdata.length > 0) {
+            return point.customdata;
+          }
+          if (typeof point.text === "string" && point.text.length > 0) {
+            return point.text.replace(/<[^>]+>/g, "").trim();
+          }
+          return "";
+        }
+
+        function segmentsToXY(segments) {
+          const x = [];
+          const y = [];
+          for (const segment of segments) {
+            x.push(segment[0], segment[2], null);
+            y.push(segment[1], segment[3], null);
+          }
+          return {x, y};
+        }
+
+        function setConnectionVisibility(activeNode) {
+          const incomingSegments = activeNode === null ? [] : (
+            incomingSegmentsByNode[activeNode] || []
+          );
+          const outgoingSegments = activeNode === null ? [] : (
+            outgoingSegmentsByNode[activeNode] || []
+          );
+          const incomingXY = segmentsToXY(incomingSegments);
+          const outgoingXY = segmentsToXY(outgoingSegments);
+
+          window.Plotly.restyle(
+            graphDiv,
+            {"x": [incomingXY.x], "y": [incomingXY.y], "visible": [incomingXY.x.length > 0]},
+            [incomingTraceIndex]
+          );
+          window.Plotly.restyle(
+            graphDiv,
+            {"x": [outgoingXY.x], "y": [outgoingXY.y], "visible": [outgoingXY.x.length > 0]},
+            [outgoingTraceIndex]
+          );
+
+          const connectedNodes = new Set();
+          if (activeNode !== null) {
+            for (const source of (incomingNodesByNode[activeNode] || [])) {
+              connectedNodes.add(source);
+            }
+            for (const target of (outgoingNodesByNode[activeNode] || [])) {
+              connectedNodes.add(target);
             }
           }
 
-          const selectedIndex = nodeIndexByCode.get(activeNode);
-          if (selectedIndex !== undefined) {
-            nodeBorderWidths[selectedIndex] = 3.0;
-            nodeBorderColors[selectedIndex] = "#111111";
-            nodeTexts[selectedIndex] = "<b>" + baseNodeTexts[selectedIndex] + "</b>";
-            textColors[selectedIndex] = "#111111";
-          }
-        }
+          const nodeColors = [...baseNodeColors];
+          const nodeSizes = [...baseNodeSizes];
+          const nodeOpacity = [...baseNodeOpacity];
+          const nodeBorderWidths = [...baseBorderWidths];
+          const nodeBorderColors = [...baseBorderColors];
+          const nodeTexts = [...baseNodeTexts];
+          const textColors = [...baseTextColors];
+          if (activeNode !== null) {
+            const focusNodes = new Set(connectedNodes);
+            focusNodes.add(activeNode);
+            for (let i = 0; i < nodeOpacity.length; i++) {
+              const code = nodeCodes[i];
+              if (!focusNodes.has(code)) {
+                nodeColors[i] = fadedNodeColor;
+                textColors[i] = fadedTextColor;
+                nodeOpacity[i] = 0.28;
+              } else {
+                nodeColors[i] = baseNodeColors[i];
+                textColors[i] = baseTextColors[i];
+                nodeOpacity[i] = 1.0;
+              }
+            }
 
-        if (nodeTraceIndex >= 0) {
+            const selectedIndex = nodeIndexByCode.get(activeNode);
+            if (selectedIndex !== undefined) {
+              nodeBorderWidths[selectedIndex] = 3.0;
+              nodeBorderColors[selectedIndex] = "#111111";
+              nodeTexts[selectedIndex] = "<b>" + baseNodeTexts[selectedIndex] + "</b>";
+              textColors[selectedIndex] = "#111111";
+            }
+          }
+
           window.Plotly.restyle(
             graphDiv,
             {
@@ -689,121 +729,126 @@ def create_app() -> Flask:
             [nodeTraceIndex]
           );
         }
-      }
 
-      function clearSelectedNodeAndHideLines() {
-        selectedNode = null;
-        localStorage.removeItem(selectedNodeStorageKey);
-        setConnectionVisibility(null);
-        setStatus(defaultStatusText, "#5f6368");
-      }
-
-      let shouldSubmit = false;
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.has("completed")) {
-        localStorage.setItem(completedStorageKey, completedInput.value);
-      } else {
-        const savedCompleted = localStorage.getItem(completedStorageKey);
-        if (savedCompleted !== null && savedCompleted !== completedInput.value) {
-          completedInput.value = savedCompleted;
-          shouldSubmit = true;
+        function clearSelectedNodeAndHideLines() {
+          selectedNode = null;
+          localStorage.removeItem(selectedNodeStorageKey);
+          setConnectionVisibility(null);
+          setStatus(defaultStatusText, "#5f6368");
         }
-      }
 
-      if (urlParams.has("connected_only")) {
-        localStorage.setItem(connectedStorageKey, connectedOnlyCheckbox.checked ? "1" : "0");
-      } else {
-        const savedConnected = localStorage.getItem(connectedStorageKey);
-        if (savedConnected === "0" || savedConnected === "1") {
-          const savedChecked = savedConnected === "1";
-          if (savedChecked !== connectedOnlyCheckbox.checked) {
-            connectedOnlyCheckbox.checked = savedChecked;
-            connectedOnlyInput.value = savedChecked ? "1" : "0";
+        let shouldSubmit = false;
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has("completed")) {
+          localStorage.setItem(completedStorageKey, completedInput.value);
+        } else {
+          const savedCompleted = localStorage.getItem(completedStorageKey);
+          if (savedCompleted !== null && savedCompleted !== completedInput.value) {
+            completedInput.value = savedCompleted;
             shouldSubmit = true;
           }
         }
-      }
 
-      if (shouldSubmit) {
-        form.submit();
-        return;
-      }
-
-      if (selectedNode) {
-        setConnectionVisibility(selectedNode);
-        setStatus(
-          "Showing links for " + selectedNode +
-          " (red = prerequisites, green = unlocks). " +
-          "Click again to toggle completion.",
-          "#5f6368"
-        );
-      } else {
-        setConnectionVisibility(null);
-        setStatus(defaultStatusText, "#5f6368");
-      }
-
-      connectedOnlyCheckbox.addEventListener("change", function () {
-        connectedOnlyInput.value = connectedOnlyCheckbox.checked ? "1" : "0";
-        localStorage.setItem(connectedStorageKey, connectedOnlyInput.value);
-        form.submit();
-      });
-
-      graphDiv.on("plotly_click", function (eventData) {
-        suppressNextDocumentClear = true;
-        window.setTimeout(function () { suppressNextDocumentClear = false; }, 0);
-
-        if (!eventData || !eventData.points || eventData.points.length === 0) {
-          return;
-        }
-        const clicked = eventData.points[0].customdata;
-        if (!clicked) {
-          return;
-        }
-
-        if (selectedNode !== clicked) {
-          selectedNode = clicked;
-          localStorage.setItem(selectedNodeStorageKey, selectedNode);
-          setConnectionVisibility(clicked);
-          setStatus(
-            "Showing links for " + clicked + " (red = prerequisites, green = unlocks). 
-            Click again to toggle completion.",
-            "#5f6368"
-          );
-          return;
-        }
-
-        const completed = parseCompleted(completedInput.value);
-        if (!completed.has(clicked) && blockedCourses.has(clicked)) {
-          setStatus(clicked + " is excluded by a completed course.", "#b3261e");
-          return;
-        }
-
-        localStorage.setItem(selectedNodeStorageKey, selectedNode);
-        if (completed.has(clicked)) {
-          completed.delete(clicked);
+        if (urlParams.has("connected_only")) {
+          localStorage.setItem(connectedStorageKey, connectedOnlyCheckbox.checked ? "1" : "0");
         } else {
-          completed.add(clicked);
-        }
-        setStatus("Updating course completion...", "#5f6368");
-        completedInput.value = serializeCompleted(completed);
-        localStorage.setItem(completedStorageKey, completedInput.value);
-        connectedOnlyInput.value = connectedOnlyCheckbox.checked ? "1" : "0";
-        form.submit();
-      });
-
-      document.addEventListener("click", function (event) {
-        if (suppressNextDocumentClear || selectedNode === null) {
-          return;
-        }
-        const target = event.target;
-        if (target instanceof Element) {
-          const clickedNodePoint = target.closest(".point, .textpoint");
-          if (clickedNodePoint && graphDiv.contains(clickedNodePoint)) {
-            return;
+          const savedConnected = localStorage.getItem(connectedStorageKey);
+          if (savedConnected === "0" || savedConnected === "1") {
+            const savedChecked = savedConnected === "1";
+            if (savedChecked !== connectedOnlyCheckbox.checked) {
+              connectedOnlyCheckbox.checked = savedChecked;
+              connectedOnlyInput.value = savedChecked ? "1" : "0";
+              shouldSubmit = true;
+            }
           }
         }
-        clearSelectedNodeAndHideLines();
-      });
+
+        if (shouldSubmit) {
+          form.submit();
+          return;
+        }
+
+        if (selectedNode) {
+          setConnectionVisibility(selectedNode);
+          setStatus(
+            "Showing links for " + selectedNode +
+            " (red = prerequisites, green = unlocks). " +
+            "Click again to toggle completion.",
+            "#5f6368"
+          );
+        } else {
+          setConnectionVisibility(null);
+          setStatus(defaultStatusText, "#5f6368");
+        }
+
+        connectedOnlyCheckbox.addEventListener("change", function () {
+          connectedOnlyInput.value = connectedOnlyCheckbox.checked ? "1" : "0";
+          localStorage.setItem(connectedStorageKey, connectedOnlyInput.value);
+          form.submit();
+        });
+
+        graphDiv.on("plotly_click", function (eventData) {
+          suppressNextDocumentClear = true;
+          window.setTimeout(function () {
+            suppressNextDocumentClear = false;
+          }, 0);
+
+          if (!eventData || !eventData.points || eventData.points.length === 0) {
+            return;
+          }
+          const clicked = extractClickedCourse(eventData.points[0]);
+          if (!clicked) {
+            return;
+          }
+
+          if (selectedNode !== clicked) {
+            selectedNode = clicked;
+            localStorage.setItem(selectedNodeStorageKey, selectedNode);
+            setConnectionVisibility(clicked);
+            setStatus(
+              "Showing links for " + clicked +
+              " (red = prerequisites, green = unlocks). " +
+              "Click again to toggle completion.",
+              "#5f6368"
+            );
+            return;
+          }
+
+          const completed = parseCompleted(completedInput.value);
+          if (!completed.has(clicked) && blockedCourses.has(clicked)) {
+            setStatus(clicked + " is excluded by a completed course.", "#b3261e");
+            return;
+          }
+
+          localStorage.setItem(selectedNodeStorageKey, selectedNode);
+          if (completed.has(clicked)) {
+            completed.delete(clicked);
+          } else {
+            completed.add(clicked);
+          }
+          setStatus("Updating course completion...", "#5f6368");
+          completedInput.value = serializeCompleted(completed);
+          localStorage.setItem(completedStorageKey, completedInput.value);
+          connectedOnlyInput.value = connectedOnlyCheckbox.checked ? "1" : "0";
+          form.submit();
+        });
+
+        document.addEventListener("click", function (event) {
+          if (suppressNextDocumentClear || selectedNode === null) {
+            return;
+          }
+          const target = event.target;
+          if (target instanceof Element) {
+            const clickedNodePoint = target.closest(".point, .textpoint");
+            if (clickedNodePoint && graphDiv.contains(clickedNodePoint)) {
+              return;
+            }
+          }
+          clearSelectedNodeAndHideLines();
+        });
+      }
+
+      waitForGraphReady(0);
     })();
   </script>
 </body>
@@ -830,3 +875,25 @@ def create_app() -> Flask:
 
 if __name__ == "__main__":
     create_app().run(host="127.0.0.1", port=5050, debug=False, use_reloader=False)
+
+    import doctest
+    doctest.testmod()
+
+    import python_ta
+    python_ta.check_all(config={
+        'max-line-length': 120,
+        'extra-imports': [
+            'dataclasses', 'itertools', 'csv', 'json', 'pathlib', 'base64',
+            'string', 'ssl', 'time', 'urllib.error', 'urllib.parse', 'urllib.request', 'os',
+            'networkx', 'flask', 'plotly.graph_objects',
+            'models', 'course_dataset', 'prerequisite_graph',
+            'rmp_course_dataset', 'ratemyprof_scraper', 'web_app'
+        ],
+        'allowed-io': [
+            'load_course_catalog',
+            'write_course_professor_ratings_csv',
+            'load_course_professor_ratings_csv',
+            '_fetch_html',
+            '_post_graphql'
+        ]
+    })

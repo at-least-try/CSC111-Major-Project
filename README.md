@@ -6,9 +6,8 @@ Course pathway planner for UofT CS with prerequisite graph visualization and Rat
 
 - `Datasets/CourseData.csv`: course and prerequisite dataset
 - `Datasets/CourseProfessorRatings.csv`: generated course-to-professor ratings dataset
-- `Datasets/ratemyprof_scraper.py`: RateMyProf scraping utilities
 - `course_dataset.py`: loads and normalizes course dataset
-- `rmp_course_dataset.py`: builds/loads ratings dataset
+- `rmp_course_dataset.py`: loads/writes ratings dataset
 - `prerequisite_graph.py`: graph construction + unlock/recommendation logic
 - `web_app.py`: Flask + Plotly web interface
 - `main.py`: helper entrypoints
@@ -26,10 +25,10 @@ python3 -m pip install --user -r requirements.txt
 
 ## Run
 
-### 1. (Optional) Rebuild ratings dataset from live RateMyProf
+### 1. (Optional) Rebuild ratings dataset from local ratings CSV
 
 ```bash
-python3 -c "from main import run_build_rmp_dataset; run_build_rmp_dataset()"
+python3 -c "from main import run_build_rmp_dataset; print(run_build_rmp_dataset())"
 ```
 
 This writes `Datasets/CourseProfessorRatings.csv`.
@@ -64,8 +63,8 @@ python3 -c "from main import run_load_rmp_dataset_summary; print(run_load_rmp_da
 
 ## PythonTA
 
-Run PythonTA with the project config:
+Run PythonTA:
 
 ```bash
-python3 -m python_ta -c python_ta_config.cfg web_app.py prerequisite_graph.py course_dataset.py models.py rmp_course_dataset.py Datasets/ratemyprof_scraper.py main.py
+python3 -m python_ta -c python_ta_config.cfg web_app.py prerequisite_graph.py course_dataset.py models.py rmp_course_dataset.py main.py
 ```

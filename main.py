@@ -2,7 +2,7 @@
 
 Current milestone:
 - load the local course dataset from ``Datasets/CourseData.csv``
-- scrape RateMyProf and build/load ``Datasets/CourseProfessorRatings.csv``
+- load/build ``Datasets/CourseProfessorRatings.csv`` from local CSV data
 """
 
 from __future__ import annotations
@@ -23,7 +23,10 @@ def run_local_dataset_summary() -> tuple[int, int]:
 
 
 def run_build_rmp_dataset() -> tuple[int, int]:
-    """Build ratings dataset and return (profile_count, rated_course_count)."""
+    """Build ratings dataset and return (profile_count, rated_course_count).
+
+    ``profile_count`` is 0 because live scraping is disabled.
+    """
     catalog = load_course_catalog()
     grouped = build_course_number_index(catalog)
     course_numbers = set(grouped)
