@@ -1,11 +1,11 @@
 """CSC111 Project: simple web app for course pathway visualization."""
 
 from __future__ import annotations
-
-import json
 from pathlib import Path
+from typing import NamedTuple
 
 from flask import Flask, render_template_string, request
+import networkx as nx
 import plotly.graph_objects as go
 
 from course_dataset import load_course_catalog
@@ -16,10 +16,21 @@ from prerequisite_graph import (
     get_unlocked_courses,
     recommend_next_courses,
 )
-from rmp_course_dataset import load_course_professor_ratings_csv
+from rmp_course_dataset import load_ratings_csv
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 RATINGS_PATH = PROJECT_ROOT / "Datasets" / "CourseProfessorRatings.csv"
+
+
+class NodeTraceContext(NamedTuple):
+    """Typed container for node trace build inputs."""
+
+    graph: nx.DiGraph
+    positions: dict[str, tuple[float, float]]
+    completed_courses: set[str]
+    unlocked_courses: set[str]
+    ratings_index: dict[str, CourseProfessorRatings]
+    excluded_by: dict[str, set[str]]
 
 
 def _parse_completed_input(raw: str) -> set[str]:
@@ -35,33 +46,58 @@ def _format_prerequisite_groups(
     if not prerequisite_groups:
         return "None"
 
-    group_lines = []
+    lines = []
     for index, group in enumerate(prerequisite_groups, start=1):
-        group_has_completed_course = False
-        option_html = []
-        for option in group:
-            is_option_met = option.issubset(completed_courses)
-            option_color = "#1f8f3a" if is_option_met else "#c62828"
-            token_html = []
-            for course in sorted(option):
-                is_completed = course in completed_courses
-                if is_completed:
-                    group_has_completed_course = True
-                token_color = "#1f8f3a" if is_completed else "#c62828"
-                token_html.append(f"<span style='color:{token_color};'>{course}</span>")
-            option_text = " &amp; ".join(token_html)
-            option_html.append(f"<span style='color:{option_color};'><b>{option_text}</b></span>")
+        lines.append(_format_prereq_group(index, group, completed_courses))
+    return "<br>".join(lines)
 
-        group_bg = "#e6f4ea" if group_has_completed_course else "#fdecea"
-        group_border = "#81c995" if group_has_completed_course else "#f28b82"
-        group_line = (
-            f"<span style='display:inline-block;padding:2px 6px;border-radius:6px;"
-            f"background:{group_bg};border:1px solid {group_border};'>"
-            f"G{index}: {' <b> OR </b> '.join(option_html)}</span>"
+
+def _format_prereq_group(
+    index: int, group: list[set[str]], completed_courses: set[str]
+) -> str:
+    """Return one formatted prerequisite group row."""
+    option_html = []
+    has_completed_course = False
+    for option in group:
+        option_text, option_has_completed = _format_prereq_option(
+            option, completed_courses
         )
-        group_lines.append(group_line)
+        option_html.append(option_text)
+        has_completed_course = has_completed_course or option_has_completed
 
-    return "<br>".join(group_lines)
+    group_bg = "#e6f4ea" if has_completed_course else "#fdecea"
+    group_border = "#81c995" if has_completed_course else "#f28b82"
+    return (
+        f"<span style='display:inline-block;padding:2px 6px;border-radius:6px;"
+        f"background:{group_bg};border:1px solid {group_border};'>"
+        f"G{index}: {' <b> OR </b> '.join(option_html)}</span>"
+    )
+
+
+def _format_prereq_option(
+    option: set[str], completed_courses: set[str]
+) -> tuple[str, bool]:
+    """Return formatted option text and completion-presence boolean."""
+    token_html = []
+    has_completed_course = False
+    for course in sorted(option):
+        is_completed = course in completed_courses
+        has_completed_course = has_completed_course or is_completed
+        token_color = "#1f8f3a" if is_completed else "#c62828"
+        token_html.append(f"<span style='color:{token_color};'>{course}</span>")
+
+    if option.issubset(completed_courses):
+        option_color = "#1f8f3a"
+    else:
+        option_color = "#c62828"
+    option_text = " &amp; ".join(token_html)
+    return (
+        (
+            f"<span style='color:{option_color};'>"
+            f"<b>{option_text}</b></span>"
+        ),
+        has_completed_course,
+    )
 
 
 def _course_year(course_number: str) -> int:
@@ -94,25 +130,35 @@ def _spread_layer_nodes(layer_nodes: list[str]) -> dict[str, float]:
 
     margin = 0.06
     gap = (1.0 - 2 * margin) / (len(layer_nodes) - 1)
-    return {node: margin + index * gap for index, node in enumerate(layer_nodes)}
+    return {
+        node: margin + index * gap
+        for index, node in enumerate(layer_nodes)
+    }
 
 
-def _average_x(neighbors: list[str], x_positions: dict[str, float], fallback: float) -> float:
+def _average_x(
+    neighbors: list[str], x_positions: dict[str, float], fallback: float
+) -> float:
     """Return average x-position for neighbors or fallback if empty."""
     if not neighbors:
         return fallback
-    return sum(x_positions.get(node, 0.5) for node in neighbors) / len(neighbors)
+    neighbor_total = sum(x_positions.get(node, 0.5) for node in neighbors)
+    return neighbor_total / len(neighbors)
 
 
-def _build_node_positions(graph, nodes: list[str]) -> dict[str, tuple[float, float]]:
+def _build_node_positions(
+    graph: nx.DiGraph, nodes: list[str]
+) -> dict[str, tuple[float, float]]:
     """Build layered positions by year using a simple crossing-reduction pass."""
     rows = {}
     for node in nodes:
-        year = _course_year(node)
-        rows.setdefault(year, []).append(node)
+        level = _course_year(node)
+        rows.setdefault(level, []).append(node)
 
     years = sorted(rows)
-    ordered_rows = {year: sorted(rows[year]) for year in years}
+    ordered_rows = {}
+    for row_year in years:
+        ordered_rows[row_year] = sorted(rows[row_year])
 
     x_positions = {}
     for year in years:
@@ -158,20 +204,17 @@ def _build_node_positions(graph, nodes: list[str]) -> dict[str, tuple[float, flo
     return positions
 
 
-def _build_plot_html(
-    graph,
-    completed_courses: set[str],
-    unlocked_courses: set[str],
-    ratings_index: dict[str, CourseProfessorRatings],
-    excluded_by: dict[str, set[str]],
-) -> tuple[str, dict[str, dict[str, list]]]:
-    """Build Plotly HTML for prerequisite graph."""
-    nodes = sorted(graph.nodes())
-    positions = _build_node_positions(graph, nodes)
+def _build_edge_client_data(
+    graph: nx.DiGraph,
+    positions: dict[str, tuple[float, float]],
+    nodes: list[str],
+) -> dict[str, dict[str, list]]:
+    """Build edge segment maps and connected-node maps for frontend updates."""
     incoming_segments = {node: [] for node in nodes}
     outgoing_segments = {node: [] for node in nodes}
     incoming_nodes = {node: [] for node in nodes}
     outgoing_nodes = {node: [] for node in nodes}
+
     for source, target in sorted(graph.edges()):
         x0, y0 = positions[source]
         x1, y1 = positions[target]
@@ -180,68 +223,148 @@ def _build_plot_html(
         incoming_nodes[target].append(source)
         outgoing_nodes[source].append(target)
 
-    node_x = []
-    node_y = []
-    node_labels = []
-    node_codes = []
-    node_color = []
-    node_hover = []
+    return {
+        "incoming_segments": incoming_segments,
+        "outgoing_segments": outgoing_segments,
+        "incoming_nodes": incoming_nodes,
+        "outgoing_nodes": outgoing_nodes,
+    }
+
+
+def _build_node_visual(
+    node: str,
+    completed_courses: set[str],
+    unlocked_courses: set[str],
+    excluded_by: dict[str, set[str]],
+) -> tuple[str, str, str]:
+    """Return (color, label, status text) for one node."""
+    if node in completed_courses:
+        return "#1b8f3f", node, "Completed"
+    if node in excluded_by and node not in completed_courses:
+        excluded_from = ", ".join(sorted(excluded_by.get(node, set())))
+        return "#d9534f", f"{node}<br>EXCLUDED", f"Excluded by: {excluded_from}"
+    if node in unlocked_courses:
+        return "#3498db", node, "Unlocked"
+    return "#bdc3c7", node, "Locked"
+
+
+def _build_node_hover(
+    node: str,
+    status: str,
+    graph: nx.DiGraph,
+    ratings_index: dict[str, CourseProfessorRatings],
+    completed_courses: set[str],
+) -> str:
+    """Return hover text for one course node."""
+    average_rating = course_average_rating(node, ratings_index)
+    rating_text = f"{average_rating:.2f}" if average_rating > 0 else "N/A"
+    requirements = graph.nodes[node].get("requirements", [])
+    requirement_text = _format_prerequisite_groups(requirements, completed_courses)
+
+    return (
+        f"{node}"
+        f"<br>Status: {status}"
+        f"<br>Prerequisites: {len(list(graph.predecessors(node)))}"
+        f"<br>Unlocks: {len(list(graph.successors(node)))}"
+        f"<br>Average Rating: {rating_text}"
+        f"<br><br><b>Requirement Groups</b><br>"
+        f"{requirement_text}"
+    )
+
+
+def _build_node_trace(nodes: list[str], context: NodeTraceContext) -> go.Scatter:
+    """Build the Plotly node trace."""
+    graph = context.graph
+    positions = context.positions
+    completed_courses = context.completed_courses
+    unlocked_courses = context.unlocked_courses
+    ratings_index = context.ratings_index
+    excluded_by = context.excluded_by
+
+    node_data = {
+        "x": [],
+        "y": [],
+        "labels": [],
+        "codes": [],
+        "colors": [],
+        "hover": [],
+    }
+
     for node in nodes:
-        x, y = positions[node]
-        node_x.append(x)
-        node_y.append(y)
-        node_codes.append(node)
+        point = positions[node]
+        node_data["x"].append(point[0])
+        node_data["y"].append(point[1])
+        node_data["codes"].append(node)
 
-        is_completed = node in completed_courses
-        is_excluded = node in excluded_by and node not in completed_courses
-        if is_completed:
-            node_color.append("#1b8f3f")
-            node_labels.append(node)
-            status = "Completed"
-        elif is_excluded:
-            node_color.append("#d9534f")
-            node_labels.append(f"{node}<br>EXCLUDED")
-            excluded_from = ", ".join(sorted(excluded_by.get(node, set())))
-            status = f"Excluded by: {excluded_from}"
-        elif node in unlocked_courses:
-            node_color.append("#3498db")
-            node_labels.append(node)
-            status = "Unlocked"
-        else:
-            node_color.append("#bdc3c7")
-            node_labels.append(node)
-            status = "Locked"
-
-        average_rating = course_average_rating(node, ratings_index)
-        rating_text = f"{average_rating:.2f}" if average_rating > 0 else "N/A"
-
-        node_hover.append(
-            (
-                f"{node}"
-                f"<br>Status: {status}"
-                f"<br>Prerequisites: {len(list(graph.predecessors(node)))}"
-                f"<br>Unlocks: {len(list(graph.successors(node)))}"
-                f"<br>Average Rating: {rating_text}"
-                f"<br><br><b>Requirement Groups</b><br>"
-                f"{_format_prerequisite_groups(graph.nodes[node].get('requirements', []), completed_courses)}"
-            )
+        visual = _build_node_visual(
+            node, completed_courses, unlocked_courses, excluded_by
+        )
+        node_data["colors"].append(visual[0])
+        node_data["labels"].append(visual[1])
+        node_data["hover"].append(
+            _build_node_hover(node, visual[2], graph, ratings_index, completed_courses)
         )
 
-    node_trace = go.Scatter(
-        x=node_x,
-        y=node_y,
+    return go.Scatter(
+        x=node_data["x"],
+        y=node_data["y"],
         mode="markers+text",
-        text=node_labels,
-        customdata=node_codes,
+        text=node_data["labels"],
+        customdata=node_data["codes"],
         textposition="top center",
-        hovertext=node_hover,
+        hovertext=node_data["hover"],
         hoverinfo="text",
         marker={
             "size": 16,
-            "color": node_color,
+            "color": node_data["colors"],
             "line": {"width": 1.0, "color": "#2f2f2f"},
         },
         textfont={"size": 11},
+    )
+
+
+def _build_year_row_annotations(nodes: list[str]) -> list[dict]:
+    """Return y-axis row labels for course-year layers."""
+    years = sorted({_course_year(node) for node in nodes})
+    max_year = max(years) if years else 0
+    annotations = []
+    for year in years:
+        y = (max_year - year) * 1.55
+        annotations.append(
+            {
+                "x": -0.02,
+                "y": y,
+                "text": f"{year}00 level",
+                "showarrow": False,
+                "font": {"size": 11, "color": "#5f6368"},
+                "xanchor": "right",
+                "yanchor": "middle",
+            }
+        )
+    return annotations
+
+
+def _build_plot_html(
+    graph: nx.DiGraph,
+    completed_courses: set[str],
+    unlocked_courses: set[str],
+    ratings_index: dict[str, CourseProfessorRatings],
+    excluded_by: dict[str, set[str]],
+) -> tuple[str, dict[str, dict[str, list]]]:
+    """Build Plotly HTML for prerequisite graph."""
+    nodes = sorted(graph.nodes())
+    positions = _build_node_positions(graph, nodes)
+    edge_data = _build_edge_client_data(graph, positions, nodes)
+    node_trace = _build_node_trace(
+        nodes,
+        NodeTraceContext(
+            graph=graph,
+            positions=positions,
+            completed_courses=completed_courses,
+            unlocked_courses=unlocked_courses,
+            ratings_index=ratings_index,
+            excluded_by=excluded_by,
+        ),
     )
 
     incoming_trace = go.Scatter(
@@ -262,23 +385,6 @@ def _build_plot_html(
     )
 
     figure = go.Figure(data=[incoming_trace, outgoing_trace, node_trace])
-    year_rows = sorted({_course_year(node) for node in nodes})
-    max_year = max(year_rows) if year_rows else 0
-    row_annotations = []
-    for year in year_rows:
-        y = (max_year - year) * 1.55
-        row_annotations.append(
-            {
-                "x": -0.02,
-                "y": y,
-                "text": f"{year}00 level",
-                "showarrow": False,
-                "font": {"size": 11, "color": "#5f6368"},
-                "xanchor": "right",
-                "yanchor": "middle",
-            }
-        )
-
     figure.update_layout(
         title="CSC Course Prerequisite Graph",
         showlegend=False,
@@ -292,23 +398,17 @@ def _build_plot_html(
             "range": [-0.06, 1.03],
         },
         yaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
-        annotations=row_annotations,
+        annotations=_build_year_row_annotations(nodes),
     )
     plot_html = figure.to_html(
         full_html=False,
         include_plotlyjs="cdn",
         div_id="course-graph",
     )
-    client_data = {
-        "incoming_segments": incoming_segments,
-        "outgoing_segments": outgoing_segments,
-        "incoming_nodes": incoming_nodes,
-        "outgoing_nodes": outgoing_nodes,
-    }
-    return plot_html, client_data
+    return plot_html, edge_data
 
 
-def _connected_subgraph(graph):
+def _connected_subgraph(graph: nx.DiGraph) -> nx.DiGraph:
     """Return subgraph containing only nodes with at least one edge."""
     connected_nodes = [node for node in graph.nodes if graph.degree(node) > 0]
     return graph.subgraph(connected_nodes).copy()
@@ -327,7 +427,7 @@ def create_app() -> Flask:
     graph = build_prerequisite_graph(catalog)
 
     if RATINGS_PATH.exists():
-        ratings_index = load_course_professor_ratings_csv(RATINGS_PATH)
+        ratings_index = load_ratings_csv(RATINGS_PATH)
     else:
         ratings_index = {}
 
@@ -380,7 +480,8 @@ def create_app() -> Flask:
     .panel { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 14px; margin-bottom: 16px; }
     form { margin: 0; }
     .legend span { display: inline-block; margin-right: 12px; font-size: 13px; }
-    .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; margin-right: 4px; vertical-align: middle; }
+    .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; 
+    margin-right: 4px; vertical-align: middle; }
     ul { margin-top: 8px; }
     li { margin-bottom: 4px; }
   </style>
@@ -416,7 +517,8 @@ def create_app() -> Flask:
       </label>
     </div>
     <p id="status-message" style="min-height:16px;margin:0 0 8px 0;font-size:12px;color:#5f6368;">
-      Click a node once to show links (red = prerequisites, green = unlocks). Click the same node again to toggle completion.
+      Click a node once to show links (red = prerequisites, green = unlocks). 
+      Click the same node again to toggle completion.
     </p>
     {{ plot_html|safe }}
   </div>
@@ -446,18 +548,19 @@ def create_app() -> Flask:
       const connectedStorageKey = "csc111_connected_only";
       const completedStorageKey = "csc111_completed_courses";
       const selectedNodeStorageKey = "csc111_selected_node";
-      const blockedCourses = new Set({{ blocked_courses_json|safe }});
-      const incomingSegmentsByNode = {{ incoming_segments_json|safe }};
-      const outgoingSegmentsByNode = {{ outgoing_segments_json|safe }};
-      const incomingNodesByNode = {{ incoming_nodes_json|safe }};
-      const outgoingNodesByNode = {{ outgoing_nodes_json|safe }};
+      const blockedCourses = new Set({{ blocked_courses|tojson }});
+      const incomingSegmentsByNode = {{ incoming_segments|tojson }};
+      const outgoingSegmentsByNode = {{ outgoing_segments|tojson }};
+      const incomingNodesByNode = {{ incoming_nodes|tojson }};
+      const outgoingNodesByNode = {{ outgoing_nodes|tojson }};
       const statusMessage = document.getElementById("status-message");
       let selectedNode = localStorage.getItem(selectedNodeStorageKey);
       let suppressNextDocumentClear = false;
       if (!graphDiv || !form || !completedInput || !connectedOnlyCheckbox || !connectedOnlyInput || !graphDiv.on) {
         return;
       }
-      const defaultStatusText = "Click a node once to show links (red = prerequisites, green = unlocks). Click the same node again to toggle completion.";
+      const defaultStatusText = "Click a node once to show links (red = prerequisites, green = unlocks). 
+      Click the same node again to toggle completion.";
       const incomingTraceIndex = 0;
       const outgoingTraceIndex = 1;
       const nodeTraceIndex = 2;
@@ -629,7 +732,9 @@ def create_app() -> Flask:
       if (selectedNode) {
         setConnectionVisibility(selectedNode);
         setStatus(
-          "Showing links for " + selectedNode + " (red = prerequisites, green = unlocks). Click again to toggle completion.",
+          "Showing links for " + selectedNode +
+          " (red = prerequisites, green = unlocks). " +
+          "Click again to toggle completion.",
           "#5f6368"
         );
       } else {
@@ -660,7 +765,8 @@ def create_app() -> Flask:
           localStorage.setItem(selectedNodeStorageKey, selectedNode);
           setConnectionVisibility(clicked);
           setStatus(
-            "Showing links for " + clicked + " (red = prerequisites, green = unlocks). Click again to toggle completion.",
+            "Showing links for " + clicked + " (red = prerequisites, green = unlocks). 
+            Click again to toggle completion.",
             "#5f6368"
           );
           return;
@@ -712,11 +818,11 @@ def create_app() -> Flask:
             excluded_count=len(blocked_courses),
             recommendations=recommendations,
             plot_html=plot_html,
-            blocked_courses_json=json.dumps(sorted(blocked_courses)),
-            incoming_segments_json=json.dumps(graph_client_data["incoming_segments"]),
-            outgoing_segments_json=json.dumps(graph_client_data["outgoing_segments"]),
-            incoming_nodes_json=json.dumps(graph_client_data["incoming_nodes"]),
-            outgoing_nodes_json=json.dumps(graph_client_data["outgoing_nodes"]),
+            blocked_courses=sorted(blocked_courses),
+            incoming_segments=graph_client_data["incoming_segments"],
+            outgoing_segments=graph_client_data["outgoing_segments"],
+            incoming_nodes=graph_client_data["incoming_nodes"],
+            outgoing_nodes=graph_client_data["outgoing_nodes"],
         )
 
     return app
@@ -724,25 +830,3 @@ def create_app() -> Flask:
 
 if __name__ == "__main__":
     create_app().run(host="127.0.0.1", port=5050, debug=False, use_reloader=False)
-
-    import doctest
-    doctest.testmod()
-
-    import python_ta
-    python_ta.check_all(config={
-        'max-line-length': 120,
-        'extra-imports': [
-            'dataclasses', 'itertools', 'csv', 'json', 'pathlib', 'base64',
-            'string', 'ssl', 'time', 'urllib.error', 'urllib.parse', 'urllib.request', 'os',
-            'networkx', 'flask', 'plotly.graph_objects',
-            'models', 'course_dataset', 'prerequisite_graph',
-            'rmp_course_dataset', 'ratemyprof_scraper', 'web_app'
-        ],
-        'allowed-io': [
-            'load_course_catalog',
-            'write_course_professor_ratings_csv',
-            'load_course_professor_ratings_csv',
-            '_fetch_html',
-            '_post_graphql'
-        ]
-    })

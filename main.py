@@ -7,53 +7,53 @@ Current milestone:
 
 from __future__ import annotations
 
-import os
-
 from course_dataset import build_course_number_index, load_course_catalog
 from rmp_course_dataset import (
-    build_and_save_course_professor_ratings_dataset,
-    load_course_professor_ratings_csv,
+    build_and_save_ratings_dataset,
+    load_ratings_csv,
 )
 from web_app import create_app
 
 
-def run_local_dataset_summary() -> None:
-    """Print basic summary of the local course dataset."""
+def run_local_dataset_summary() -> tuple[int, int]:
+    """Return (catalog_size, unique_course_number_count)."""
     catalog = load_course_catalog()
     grouped = build_course_number_index(catalog)
-    print(f"Loaded {len(catalog)} courses from Datasets/CourseData.csv.")
-    print(f"Unique normalized course numbers: {len(grouped)}.")
+    return len(catalog), len(grouped)
 
 
-def run_build_rmp_dataset() -> None:
-    """Build ratings dataset for all catalog course numbers and write CSV."""
+def run_build_rmp_dataset() -> tuple[int, int]:
+    """Build ratings dataset and return (profile_count, rated_course_count)."""
     catalog = load_course_catalog()
     grouped = build_course_number_index(catalog)
     course_numbers = set(grouped)
 
-    rating_index, profile_count = build_and_save_course_professor_ratings_dataset(
+    rating_index, profile_count = build_and_save_ratings_dataset(
         course_numbers=course_numbers
     )
-    print(f"Scraped {profile_count} professor profiles from RateMyProf.")
-    print(f"Wrote Datasets/CourseProfessorRatings.csv for {len(rating_index)} courses.")
+    return profile_count, len(rating_index)
 
 
-def run_load_rmp_dataset_summary() -> None:
-    """Load existing ratings CSV and print a small sample."""
-    rating_index = load_course_professor_ratings_csv()
-    print(f"Loaded Datasets/CourseProfessorRatings.csv rows: {len(rating_index)}")
-    non_empty = [c for c in sorted(rating_index) if rating_index[c].professors_by_score]
-    print(f"Courses with at least one professor rating: {len(non_empty)}")
+def run_load_rmp_dataset_summary(
+) -> tuple[int, int, dict[str, dict[float, list[str]]]]:
+    """Return summary of existing ratings CSV with a 10-course sample."""
+    rating_index = load_ratings_csv()
+    non_empty = [
+        code
+        for code in sorted(rating_index)
+        if rating_index[code].professors_by_score
+    ]
+    sample = {}
     for course_number in non_empty[:10]:
         ratings = rating_index[course_number].professors_by_score
-        print(f"{course_number}: {ratings}")
+        sample[course_number] = ratings
+    return len(rating_index), len(non_empty), sample
 
 
 def run_web_app() -> None:
     """Run the website locally."""
     app = create_app()
-    port = int(os.environ.get("CSC111_WEB_PORT", "5055"))
-    print(f"Starting web app at http://127.0.0.1:{port}")
+    port = 5055
     app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
 
 

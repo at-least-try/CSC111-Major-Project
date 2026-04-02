@@ -42,30 +42,30 @@ python3 main.py
 
 Open `http://127.0.0.1:5055`.
 
-If you want a different port:
-
-```bash
-CSC111_WEB_PORT=5060 python3 main.py
-```
-
-Then open `http://127.0.0.1:5060`.
-
 Note: if you open `http://127.0.0.1:5000` and see HTTP 403, that is a different local service already using port 5000.
 
 Use:
 - `completed`: comma-separated courses, e.g. `CSC108, CSC148, CSC165`
-- `target`: optional target course, e.g. `CSC373`
+- `connected_only`: set to `1` to show only courses with graph connections
 
 ## Quick checks
 
 - Dataset summary:
 
 ```bash
-python3 -c "from main import run_local_dataset_summary; run_local_dataset_summary()"
+python3 -c "from main import run_local_dataset_summary; print(run_local_dataset_summary())"
 ```
 
 - Ratings summary:
 
 ```bash
-python3 -c "from main import run_load_rmp_dataset_summary; run_load_rmp_dataset_summary()"
+python3 -c "from main import run_load_rmp_dataset_summary; print(run_load_rmp_dataset_summary())"
+```
+
+## PythonTA
+
+Run PythonTA with the project config:
+
+```bash
+python3 -m python_ta -c python_ta_config.cfg web_app.py prerequisite_graph.py course_dataset.py models.py rmp_course_dataset.py Datasets/ratemyprof_scraper.py main.py
 ```

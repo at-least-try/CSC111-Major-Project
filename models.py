@@ -29,8 +29,7 @@ class Course:
     course_title: str
     course_description: str
     prerequisite_groups: list[list[set[str]]]
-    recommended: list[str]
-    corequisite: list[str]
+    advisory: dict[str, list[str]]
     exclusion: list[str]
     breadth_requirement: int
 
@@ -38,6 +37,16 @@ class Course:
     def course_number(self) -> str:
         """Return normalized course number, e.g. ``CSC148``."""
         return normalize_course_number(self.course_code)
+
+    @property
+    def recommended(self) -> list[str]:
+        """Return recommended-course list from the advisory mapping."""
+        return self.advisory.get("recommended", [])
+
+    @property
+    def corequisite(self) -> list[str]:
+        """Return corequisite-course list from the advisory mapping."""
+        return self.advisory.get("corequisite", [])
 
 
 @dataclass(frozen=True)
@@ -61,12 +70,20 @@ class CourseProfessorRatings:
       values are professor names with that score.
     """
 
+    course_number: str
+    professors_by_score: dict[float, list[str]]
+
     def __init__(
-        self, course_number: str, professors_by_score: dict[float, list[str]] | None = None
+        self,
+        course_number: str,
+        professors_by_score: dict[float, list[str]] | None = None,
     ) -> None:
         """Initialize rating buckets for one course."""
         self.course_number = course_number
-        self.professors_by_score = professors_by_score if professors_by_score is not None else {}
+        if professors_by_score is None:
+            self.professors_by_score = {}
+        else:
+            self.professors_by_score = professors_by_score
 
     def add_professor(self, professor_name: str, score: float) -> None:
         """Add one professor to the bucket keyed by score."""
@@ -74,27 +91,3 @@ class CourseProfessorRatings:
         self.professors_by_score.setdefault(rounded_score, [])
         if professor_name not in self.professors_by_score[rounded_score]:
             self.professors_by_score[rounded_score].append(professor_name)
-
-
-if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
-
-    import python_ta
-    python_ta.check_all(config={
-        'max-line-length': 120,
-        'extra-imports': [
-            'dataclasses', 'itertools', 'csv', 'json', 'pathlib', 'base64',
-            'string', 'ssl', 'time', 'urllib.error', 'urllib.parse', 'urllib.request', 'os',
-            'networkx', 'flask', 'plotly.graph_objects',
-            'models', 'course_dataset', 'prerequisite_graph',
-            'rmp_course_dataset', 'ratemyprof_scraper', 'web_app'
-        ],
-        'allowed-io': [
-            'load_course_catalog',
-            'write_course_professor_ratings_csv',
-            'load_course_professor_ratings_csv',
-            '_fetch_html',
-            '_post_graphql'
-        ]
-    })
