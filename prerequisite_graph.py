@@ -8,7 +8,10 @@ This module keeps the graph/recommendation logic simple:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from itertools import combinations
+
+import doctest
+
+import python_ta
 
 import networkx as nx
 
@@ -29,75 +32,16 @@ def build_prerequisite_graph(catalog: dict[str, Course]) -> nx.DiGraph:
     """Build a prerequisite graph from course catalog data."""
     graph = nx.DiGraph()
     for course in catalog.values():
-        graph.add_node(normalize_course_number(course.course_code), requirements=[])
+        graph.add_node(normalize_course_number(course.course_code))
 
     for course in catalog.values():
         target = normalize_course_number(course.course_code)
-        existing_requirements = graph.nodes[target].get("requirements", [])
-        if not existing_requirements and course.prerequisite_groups:
-            graph.nodes[target]["requirements"] = course.prerequisite_groups
-
-        for group in course.prerequisite_groups:
-            for option in group:
-                for source in option:
-                    if source in graph and source != target:
-                        graph.add_edge(source, target)
-
-    graph.graph["equivalent_map"] = _build_equivalent_map(catalog, set(graph.nodes))
-    graph.graph["exclusion_map"] = build_exclusion_map(catalog, set(graph.nodes))
+        for prereq in course.prerequisites:
+            source = normalize_course_number(prereq)
+            if source in graph and source != target:
+                graph.add_edge(source, target)
 
     return graph
-
-
-def _requirements_met(
-    prerequisite_groups: list[list[set[str]]], completed_courses: set[str]
-) -> bool:
-    """Return whether completed courses satisfy grouped prerequisite rules."""
-    for group in prerequisite_groups:
-        group_satisfied = False
-        for option in group:
-            if option.issubset(completed_courses):
-                group_satisfied = True
-                break
-        if not group_satisfied:
-            return False
-    return True
-
-
-def _build_equivalent_map(
-    catalog: dict[str, Course], available_courses: set[str]
-) -> dict[str, set[str]]:
-    """Build map of equivalent-course sets from ``/`` prerequisite groups."""
-    equivalent_map = {course: set() for course in available_courses}
-    for course in catalog.values():
-        for group in course.prerequisite_groups:
-            group_courses = []
-            for option in group:
-                if len(option) == 1:
-                    only_course = next(iter(option))
-                    if only_course in available_courses:
-                        group_courses.append(only_course)
-            if len(group_courses) > 1:
-                for first, second in combinations(sorted(set(group_courses)), 2):
-                    equivalent_map[first].add(second)
-                    equivalent_map[second].add(first)
-    return equivalent_map
-
-
-def build_exclusion_map(
-    catalog: dict[str, Course], available_courses: set[str]
-) -> dict[str, set[str]]:
-    """Build map of course exclusions from catalog data."""
-    exclusion_map = {course: set() for course in available_courses}
-    for course in catalog.values():
-        course_number = normalize_course_number(course.course_code)
-        if course_number not in available_courses:
-            continue
-        for excluded in course.exclusion:
-            if excluded in available_courses and excluded != course_number:
-                exclusion_map[course_number].add(excluded)
-                exclusion_map[excluded].add(course_number)
-    return exclusion_map
 
 
 def get_unlocked_courses(completed_courses: set[str], graph: nx.DiGraph) -> set[str]:
@@ -106,13 +50,20 @@ def get_unlocked_courses(completed_courses: set[str], graph: nx.DiGraph) -> set[
     for course in graph.nodes:
         if course in completed_courses:
             continue
-        requirements = graph.nodes[course].get("requirements", [])
-        if _requirements_met(requirements, completed_courses):
+        prerequisites = set(graph.predecessors(course))
+        if prerequisites.issubset(completed_courses):
             unlocked.add(course)
     return unlocked
 
 
-def course_average_rating(
+def get_target_plan_nodes(target_course: str, graph: nx.DiGraph) -> set[str]:
+    """Return target and all prerequisite ancestors for that target."""
+    if target_course not in graph:
+        return set()
+    return set(nx.ancestors(graph, target_course)) | {target_course}
+
+
+def _course_average_rating(
     course_number: str, ratings_index: dict[str, CourseProfessorRatings]
 ) -> float:
     """Return average score for one course from score buckets."""
@@ -139,21 +90,10 @@ def recommend_next_courses(
     Score = (average rating * 2.0) + unlock_count
     """
     unlocked = get_unlocked_courses(completed_courses, graph)
-    equivalent_map = graph.graph.get("equivalent_map", {})
-    exclusion_map = graph.graph.get("exclusion_map", {})
-    excluded_courses = set()
-    for completed in completed_courses:
-        excluded_courses.update(exclusion_map.get(completed, set()))
-
     recommendations = []
     for course in unlocked:
-        if course in excluded_courses:
-            continue
-        equivalent_courses = equivalent_map.get(course, set())
-        if equivalent_courses.intersection(completed_courses):
-            continue
         unlock_count = len(set(graph.successors(course)) - completed_courses)
-        average_rating = course_average_rating(course, ratings_index)
+        average_rating = _course_average_rating(course, ratings_index)
         score = (average_rating * 2.0) + unlock_count
         recommendations.append(
             Recommendation(
@@ -166,3 +106,27 @@ def recommend_next_courses(
 
     recommendations.sort(key=lambda rec: rec.score, reverse=True)
     return recommendations[:limit]
+
+
+if __name__ == '__main__':
+    doctest.testmod()
+
+    python_ta.check_all(config={
+        'max-line-length': 120,
+        'extra-imports': [
+            # Standard Python Libraries used in your project
+            'dataclasses', 'itertools', 'csv', 'json', 'pathlib', 'base64',
+            'string', 'ssl', 'time', 'urllib.error', 'urllib.parse', 'urllib.request', 'os',
+            'networkx', 'flask', 'plotly.graph_objects',
+            'models', 'course_dataset', 'prerequisite_graph',
+            'rmp_course_dataset', 'ratemyprof_scraper', 'web_app'
+        ],
+        'allowed-io': [
+            # Functions in your project that read/write files or make network calls
+            'load_course_catalog',
+            'write_course_professor_ratings_csv',
+            'load_course_professor_ratings_csv',
+            '_fetch_html',
+            '_post_graphql'
+        ]
+    })
