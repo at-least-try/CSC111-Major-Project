@@ -121,3 +121,27 @@ def build_and_save_course_professor_ratings_dataset(
     )
     write_course_professor_ratings_csv(rating_index=rating_index, output_path=output_path)
     return rating_index, profile_count
+
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
+
+    import python_ta
+    python_ta.check_all(config={
+        'max-line-length': 120,
+        'extra-imports': [
+            'dataclasses', 'itertools', 'csv', 'json', 'pathlib', 'base64',
+            'string', 'ssl', 'time', 'urllib.error', 'urllib.parse', 'urllib.request', 'os',
+            'networkx', 'flask', 'plotly.graph_objects',
+            'models', 'course_dataset', 'prerequisite_graph',
+            'rmp_course_dataset', 'ratemyprof_scraper', 'web_app'
+        ],
+        'allowed-io': [
+            'load_course_catalog',
+            'write_course_professor_ratings_csv',
+            'load_course_professor_ratings_csv',
+            '_fetch_html',
+            '_post_graphql'
+        ]
+    })
