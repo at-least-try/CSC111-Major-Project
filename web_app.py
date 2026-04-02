@@ -164,29 +164,21 @@ def _build_plot_html(
     unlocked_courses: set[str],
     ratings_index: dict[str, CourseProfessorRatings],
     excluded_by: dict[str, set[str]],
-) -> str:
+) -> tuple[str, dict[str, dict[str, list]]]:
     """Build Plotly HTML for prerequisite graph."""
     nodes = sorted(graph.nodes())
     positions = _build_node_positions(graph, nodes)
-
-    edge_traces = []
+    incoming_segments = {node: [] for node in nodes}
+    outgoing_segments = {node: [] for node in nodes}
+    incoming_nodes = {node: [] for node in nodes}
+    outgoing_nodes = {node: [] for node in nodes}
     for source, target in sorted(graph.edges()):
         x0, y0 = positions[source]
         x1, y1 = positions[target]
-        edge_traces.append(
-            go.Scatter(
-                x=[x0, x1],
-                y=[y0, y1],
-                line={
-                    "width": 1.0,
-                    "color": "rgba(120, 120, 120, 0.45)",
-                },
-                visible=False,
-                meta={"source": source, "target": target},
-                hoverinfo="none",
-                mode="lines",
-            )
-        )
+        incoming_segments[target].append([x0, y0, x1, y1])
+        outgoing_segments[source].append([x0, y0, x1, y1])
+        incoming_nodes[target].append(source)
+        outgoing_nodes[source].append(target)
 
     node_x = []
     node_y = []
@@ -252,7 +244,24 @@ def _build_plot_html(
         textfont={"size": 11},
     )
 
-    figure = go.Figure(data=[*edge_traces, node_trace])
+    incoming_trace = go.Scatter(
+        x=[],
+        y=[],
+        line={"width": 2.0, "color": "#d9534f"},
+        visible=False,
+        hoverinfo="none",
+        mode="lines",
+    )
+    outgoing_trace = go.Scatter(
+        x=[],
+        y=[],
+        line={"width": 2.0, "color": "#2e7d32"},
+        visible=False,
+        hoverinfo="none",
+        mode="lines",
+    )
+
+    figure = go.Figure(data=[incoming_trace, outgoing_trace, node_trace])
     year_rows = sorted({_course_year(node) for node in nodes})
     max_year = max(year_rows) if year_rows else 0
     row_annotations = []
@@ -285,11 +294,18 @@ def _build_plot_html(
         yaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
         annotations=row_annotations,
     )
-    return figure.to_html(
+    plot_html = figure.to_html(
         full_html=False,
         include_plotlyjs="cdn",
         div_id="course-graph",
     )
+    client_data = {
+        "incoming_segments": incoming_segments,
+        "outgoing_segments": outgoing_segments,
+        "incoming_nodes": incoming_nodes,
+        "outgoing_nodes": outgoing_nodes,
+    }
+    return plot_html, client_data
 
 
 def _connected_subgraph(graph):
@@ -343,7 +359,7 @@ def create_app() -> Flask:
         ]
         display_graph = _connected_subgraph(graph) if connected_only else graph
 
-        plot_html = _build_plot_html(
+        plot_html, graph_client_data = _build_plot_html(
             graph=display_graph,
             completed_courses=completed_courses,
             unlocked_courses=unlocked_courses,
@@ -431,6 +447,10 @@ def create_app() -> Flask:
       const completedStorageKey = "csc111_completed_courses";
       const selectedNodeStorageKey = "csc111_selected_node";
       const blockedCourses = new Set({{ blocked_courses_json|safe }});
+      const incomingSegmentsByNode = {{ incoming_segments_json|safe }};
+      const outgoingSegmentsByNode = {{ outgoing_segments_json|safe }};
+      const incomingNodesByNode = {{ incoming_nodes_json|safe }};
+      const outgoingNodesByNode = {{ outgoing_nodes_json|safe }};
       const statusMessage = document.getElementById("status-message");
       let selectedNode = localStorage.getItem(selectedNodeStorageKey);
       let suppressNextDocumentClear = false;
@@ -438,7 +458,9 @@ def create_app() -> Flask:
         return;
       }
       const defaultStatusText = "Click a node once to show links (red = prerequisites, green = unlocks). Click the same node again to toggle completion.";
-      const nodeTraceIndex = graphDiv.data.length - 1;
+      const incomingTraceIndex = 0;
+      const outgoingTraceIndex = 1;
+      const nodeTraceIndex = 2;
       const nodeTrace = graphDiv.data[nodeTraceIndex];
       const nodeCodes = Array.isArray(nodeTrace.customdata) ? nodeTrace.customdata : [];
       const nodeIndexByCode = new Map();
@@ -449,6 +471,9 @@ def create_app() -> Flask:
       ) ? [...nodeTrace.marker.color] : [];
       const baseNodeSizes = baseNodeColors.map(() => 16);
       const baseNodeOpacity = baseNodeColors.map(() => 1.0);
+      const baseBorderWidths = baseNodeColors.map(() => 1.0);
+      const baseBorderColors = baseNodeColors.map(() => "#2f2f2f");
+      const baseNodeTexts = Array.isArray(nodeTrace.text) ? [...nodeTrace.text] : [];
       const baseTextColors = baseNodeColors.map(() => "#202124");
       const fadedNodeColor = "#d7dbe1";
       const fadedTextColor = "#b0b7c3";
@@ -474,47 +499,52 @@ def create_app() -> Flask:
         return Array.from(setValue).sort().join(",");
       }
 
+      function segmentsToXY(segments) {
+        const x = [];
+        const y = [];
+        for (const segment of segments) {
+          x.push(segment[0], segment[2], null);
+          y.push(segment[1], segment[3], null);
+        }
+        return {x, y};
+      }
+
       function setConnectionVisibility(activeNode) {
         if (!window.Plotly || !graphDiv.data || graphDiv.data.length <= 1) {
           return;
         }
-        const edgeIndices = [];
-        const visibleValues = [];
-        const lineColors = [];
-        const lineWidths = [];
+        const incomingSegments = activeNode === null ? [] : (incomingSegmentsByNode[activeNode] || []);
+        const outgoingSegments = activeNode === null ? [] : (outgoingSegmentsByNode[activeNode] || []);
+        const incomingXY = segmentsToXY(incomingSegments);
+        const outgoingXY = segmentsToXY(outgoingSegments);
+
+        window.Plotly.restyle(
+          graphDiv,
+          {"x": [incomingXY.x], "y": [incomingXY.y], "visible": [incomingXY.x.length > 0]},
+          [incomingTraceIndex]
+        );
+        window.Plotly.restyle(
+          graphDiv,
+          {"x": [outgoingXY.x], "y": [outgoingXY.y], "visible": [outgoingXY.x.length > 0]},
+          [outgoingTraceIndex]
+        );
+
         const connectedNodes = new Set();
-        for (let i = 0; i < graphDiv.data.length - 1; i++) {
-          const trace = graphDiv.data[i];
-          const meta = trace.meta || {};
-          let showEdge = false;
-          if (activeNode !== null && meta.target === activeNode) {
-            showEdge = true;
-            connectedNodes.add(meta.source);
-            lineColors.push("#d9534f");
-            lineWidths.push(2.0);
-          } else if (activeNode !== null && meta.source === activeNode) {
-            showEdge = true;
-            connectedNodes.add(meta.target);
-            lineColors.push("#2e7d32");
-            lineWidths.push(2.0);
-          } else {
-            lineColors.push("rgba(120, 120, 120, 0.45)");
-            lineWidths.push(1.0);
+        if (activeNode !== null) {
+          for (const source of (incomingNodesByNode[activeNode] || [])) {
+            connectedNodes.add(source);
           }
-          edgeIndices.push(i);
-          visibleValues.push(showEdge);
-        }
-        if (edgeIndices.length > 0) {
-          window.Plotly.restyle(
-            graphDiv,
-            {"visible": visibleValues, "line.color": lineColors, "line.width": lineWidths},
-            edgeIndices
-          );
+          for (const target of (outgoingNodesByNode[activeNode] || [])) {
+            connectedNodes.add(target);
+          }
         }
 
         const nodeColors = [...baseNodeColors];
         const nodeSizes = [...baseNodeSizes];
         const nodeOpacity = [...baseNodeOpacity];
+        const nodeBorderWidths = [...baseBorderWidths];
+        const nodeBorderColors = [...baseBorderColors];
+        const nodeTexts = [...baseNodeTexts];
         const textColors = [...baseTextColors];
         if (activeNode !== null) {
           const focusNodes = new Set(connectedNodes);
@@ -531,6 +561,14 @@ def create_app() -> Flask:
               nodeOpacity[i] = 1.0;
             }
           }
+
+          const selectedIndex = nodeIndexByCode.get(activeNode);
+          if (selectedIndex !== undefined) {
+            nodeBorderWidths[selectedIndex] = 3.0;
+            nodeBorderColors[selectedIndex] = "#111111";
+            nodeTexts[selectedIndex] = "<b>" + baseNodeTexts[selectedIndex] + "</b>";
+            textColors[selectedIndex] = "#111111";
+          }
         }
 
         if (nodeTraceIndex >= 0) {
@@ -540,6 +578,9 @@ def create_app() -> Flask:
               "marker.color": [nodeColors],
               "marker.size": [nodeSizes],
               "marker.opacity": [nodeOpacity],
+              "marker.line.width": [nodeBorderWidths],
+              "marker.line.color": [nodeBorderColors],
+              "text": [nodeTexts],
               "textfont.color": [textColors]
             },
             [nodeTraceIndex]
@@ -672,6 +713,10 @@ def create_app() -> Flask:
             recommendations=recommendations,
             plot_html=plot_html,
             blocked_courses_json=json.dumps(sorted(blocked_courses)),
+            incoming_segments_json=json.dumps(graph_client_data["incoming_segments"]),
+            outgoing_segments_json=json.dumps(graph_client_data["outgoing_segments"]),
+            incoming_nodes_json=json.dumps(graph_client_data["incoming_nodes"]),
+            outgoing_nodes_json=json.dumps(graph_client_data["outgoing_nodes"]),
         )
 
     return app
