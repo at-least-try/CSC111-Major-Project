@@ -28,7 +28,7 @@ def initialize_empty_rating_index(course_numbers: set[str]) -> dict[str, CourseP
     }
 
 
-def build_course_professor_ratings_from_scrape(
+def build_prof_ratings_scrape(
     course_numbers: set[str],
     department_substring: str = "computer science",
     page_size: int = 50,
@@ -60,7 +60,7 @@ def build_course_professor_ratings_from_scrape(
     return rating_index, len(profiles)
 
 
-def write_course_professor_ratings_csv(
+def write_course_prof_ratings_csv(
     rating_index: dict[str, CourseProfessorRatings],
     output_path: Path = DEFAULT_RMP_CSV_PATH,
 ) -> None:
@@ -82,7 +82,7 @@ def write_course_professor_ratings_csv(
             )
 
 
-def load_course_professor_ratings_csv(
+def load_course_prof_ratings_csv(
     input_path: Path = DEFAULT_RMP_CSV_PATH,
 ) -> dict[str, CourseProfessorRatings]:
     """Load course professor ratings CSV into typed data objects."""
@@ -103,7 +103,7 @@ def load_course_professor_ratings_csv(
     return rating_index
 
 
-def build_and_save_course_professor_ratings_dataset(
+def build_save_prof_ratings_data(
     course_numbers: set[str],
     output_path: Path = DEFAULT_RMP_CSV_PATH,
     department_substring: str = "computer science",
@@ -112,12 +112,36 @@ def build_and_save_course_professor_ratings_dataset(
     sleep_seconds: float = 0.2,
 ) -> tuple[dict[str, CourseProfessorRatings], int]:
     """Run full scrape -> map -> save pipeline in one call."""
-    rating_index, profile_count = build_course_professor_ratings_from_scrape(
+    rating_index, profile_count = build_prof_ratings_scrape(
         course_numbers=course_numbers,
         department_substring=department_substring,
         page_size=page_size,
         max_pages=max_pages,
         sleep_seconds=sleep_seconds,
     )
-    write_course_professor_ratings_csv(rating_index=rating_index, output_path=output_path)
+    write_course_prof_ratings_csv(rating_index=rating_index, output_path=output_path)
     return rating_index, profile_count
+
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
+
+    import python_ta
+    python_ta.check_all(config={
+        'max-line-length': 120,
+        'extra-imports': [
+            'dataclasses', 'itertools', 'csv', 'json', 'pathlib', 'base64',
+            'string', 'ssl', 'time', 'urllib.error', 'urllib.parse', 'urllib.request', 'os',
+            'networkx', 'flask', 'plotly.graph_objects',
+            'models', 'course_dataset', 'prerequisite_graph',
+            'rmp_course_dataset', 'ratemyprof_scraper', 'web_app', 'Datasets.ratemyprof_scraper'
+        ],
+        'allowed-io': [
+            'load_course_catalog',
+            'write_course_professor_ratings_csv',
+            'load_course_professor_ratings_csv',
+            '_fetch_html',
+            '_post_graphql'
+        ]
+    })
