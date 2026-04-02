@@ -1,0 +1,229 @@
+Project Instructions and Code Walkthrough
+========================================
+
+Implemented updates (latest)
+----------------------------
+- The selected node now has a bold border and bold text.
+- Linked nodes stay fully visible when a node is selected.
+- Unrelated nodes and their text are faded out.
+- Edge coloring:
+  - Incoming prerequisite edges are red.
+  - Outgoing unlock edges are green.
+- Performance improvement:
+  - Replaced one-Plotly-trace-per-edge with 2 dynamic edge traces (incoming/outgoing), reducing render/update overhead.
+
+Validation commands used:
+- python3 -m py_compile web_app.py main.py models.py course_dataset.py prerequisite_graph.py rmp_course_dataset.py Datasets/ratemyprof_scraper.py
+- Flask test client GET / and GET /?completed=CSC108,CSC148&connected_only=1 both return 200.
+
+
+Project Structure and Module Guide
+==================================
+
+main.py
+-------
+Purpose: entrypoint and utility runners.
+
+Functions:
+- run_local_dataset_summary
+  - Loads catalog and prints basic counts.
+- run_build_rmp_dataset
+  - Scrapes and builds Datasets/CourseProfessorRatings.csv.
+- run_load_rmp_dataset_summary
+  - Loads existing ratings CSV and prints a sample summary.
+- run_web_app
+  - Starts Flask app on CSC111_WEB_PORT or default 5055.
+- if __name__ == "__main__"
+  - Currently runs run_web_app().
+
+
+models.py
+---------
+Purpose: core class/data definitions used by loaders, scraper, graph logic, and app.
+
+Functions and classes:
+- normalize_course_number(course_code: str) -> str
+  - Normalizes codes like CSC148H1 and csc148 to CSC148.
+
+- @dataclass(frozen=True) Course
+  - Fields:
+    - course_code
+    - course_title
+    - course_description
+    - prerequisite_groups
+    - recommended
+    - corequisite
+    - exclusion
+    - breadth_requirement
+  - Property:
+    - course_number (normalized helper)
+
+- @dataclass(frozen=True) ProfessorProfile
+  - Fields:
+    - legacy_id
+    - full_name
+    - department
+    - average_rating
+    - num_ratings
+    - course_numbers
+
+- class CourseProfessorRatings
+  - Fields:
+    - course_number
+    - professors_by_score (dict[float, list[str]])
+  - Methods:
+    - __init__(...)
+    - add_professor(professor_name, score)
+
+
+course_dataset.py
+-----------------
+Purpose: parse local CSV catalog into Course objects.
+
+Format parsing rules:
+- ; separates prerequisite groups (AND across groups).
+- / separates options inside a group (OR within group).
+- & means courses that must both be completed for that option.
+- Corequisite/Exclusion/Recommended parse with / (and legacy commas).
+
+Functions:
+- _split_course_list(raw: str) -> list[str]
+- _parse_prerequisite_groups(raw: str) -> list[list[set[str]]]
+- load_course_catalog(csv_path=DEFAULT_COURSE_DATA_PATH) -> dict[str, Course]
+- build_course_number_index(courses: dict[str, Course]) -> dict[str, list[Course]]
+
+
+prerequisite_graph.py
+---------------------
+Purpose: build directed prerequisite graph and compute recommendations.
+
+Classes and functions:
+- @dataclass(frozen=True) Recommendation
+  - Fields: course_number, score, unlock_count, average_rating
+
+- build_prerequisite_graph(catalog) -> nx.DiGraph
+  - Adds nodes for normalized course numbers.
+  - Adds edges source -> target for prerequisite dependencies.
+  - Stores:
+    - graph.graph["equivalent_map"]
+    - graph.graph["exclusion_map"]
+
+- _requirements_met(prerequisite_groups, completed_courses) -> bool
+  - Grouped prerequisite satisfaction check.
+
+- _build_equivalent_map(catalog, available_courses) -> dict[str, set[str]]
+  - Builds equivalent relationships from OR groups with single-course options.
+
+- build_exclusion_map(catalog, available_courses) -> dict[str, set[str]]
+  - Builds symmetric exclusion relationships.
+
+- get_unlocked_courses(completed_courses, graph) -> set[str]
+  - Returns courses whose grouped requirements are satisfied.
+
+- course_average_rating(course_number, ratings_index) -> float
+  - Weighted average rating from score buckets.
+
+- recommend_next_courses(completed_courses, graph, ratings_index, limit=12) -> list[Recommendation]
+  - Scores unlocked courses and filters:
+    - excluded courses
+    - equivalent courses already represented by completed courses
+  - Score formula:
+    - (average_rating * 2.0) + unlock_count
+
+
+rmp_course_dataset.py
+---------------------
+Purpose: build/load CourseProfessorRatings dataset.
+
+Functions:
+- initialize_empty_rating_index(course_numbers) -> dict[str, CourseProfessorRatings]
+- build_course_professor_ratings_from_scrape(...) -> (rating_index, profile_count)
+- write_course_professor_ratings_csv(rating_index, output_path)
+- load_course_professor_ratings_csv(input_path) -> dict[str, CourseProfessorRatings]
+- build_and_save_course_professor_ratings_dataset(...) -> (rating_index, profile_count)
+
+
+Datasets/ratemyprof_scraper.py
+------------------------------
+Purpose: scrape RateMyProf payloads and extract professor/course data.
+
+Key components:
+- RateMyProfScrapeError (custom error)
+- _fetch_html(url, timeout)
+- _extract_relay_store(page_html)
+- _post_graphql(payload, timeout)
+- _school_node_id_from_legacy(school_legacy_id)
+- _teacher_school_legacy_id(teacher, relay_store)
+- _extract_course_numbers(teacher, relay_store)
+- search_professors_by_name(...)
+- fetch_professor_profile(legacy_professor_id)
+- collect_professor_profiles(...)
+- default_professor_query_seeds()
+- collect_professor_profiles_for_school_department(...)
+
+
+web_app.py
+----------
+Purpose: Flask website + Plotly visualization and interactions.
+
+Backend helper functions:
+- _parse_completed_input(raw)
+- _format_prerequisite_groups(prerequisite_groups, completed_courses)
+- _course_year(course_number)
+- _build_excluded_by(completed_courses, exclusion_map)
+- _spread_layer_nodes(layer_nodes)
+- _average_x(neighbors, x_positions, fallback)
+- _build_node_positions(graph, nodes)
+- _connected_subgraph(graph)
+- _serialize_completed(completed_courses)
+
+Graph rendering:
+- _build_plot_html(...)
+  - Builds node trace.
+  - Builds two edge traces only:
+    - incoming trace (red)
+    - outgoing trace (green)
+  - Returns:
+    - plot_html
+    - client_data:
+      - incoming_segments
+      - outgoing_segments
+      - incoming_nodes
+      - outgoing_nodes
+
+Flask app:
+- create_app()
+  - Loads catalog + graph + ratings.
+  - Route "/" reads query args:
+    - completed
+    - connected_only
+  - Computes:
+    - excluded/blocked courses
+    - unlocked courses
+    - recommendations
+  - Renders HTML template with Plotly graph and JS behavior.
+
+Frontend interaction logic (inline script):
+- First click on node:
+  - Select node, show incoming/outgoing edges.
+- Second click on same node:
+  - Toggle completion status and submit.
+- Edge colors:
+  - red incoming prerequisites
+  - green outgoing unlocks
+- Visual state:
+  - selected node has bold border + bold text
+  - directly linked nodes remain visible
+  - all unrelated nodes/text are faded
+- Clicking outside nodes clears selection and hides edges.
+- localStorage is used for:
+  - completed courses
+  - connected-only toggle
+  - selected node
+
+
+Other Python files
+------------------
+- Datasets/__init__.py
+  - Package marker; no runtime logic.
+
